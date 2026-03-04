@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming } from "react-native-reanimated";
-import { colors, radius } from "../lib/theme";
+import { useAppTheme } from "../lib/theme";
 
 interface Props {
   width?: number | string;
@@ -9,7 +9,8 @@ interface Props {
   style?: object;
 }
 
-export default function SkeletonLoader({ width = "100%", height = 20, borderRadius = radius.sm, style }: Props) {
+export default function SkeletonLoader({ width = "100%", height = 20, borderRadius = 6, style }: Props) {
+  const theme = useAppTheme();
   const opacity = useSharedValue(0.15);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function SkeletonLoader({ width = "100%", height = 20, borderRadi
   return (
     <Animated.View
       style={[
-        { width: width as number, height, borderRadius, backgroundColor: colors.glassBorder },
+        { width: width as number, height, borderRadius, backgroundColor: theme.colors.surfaceVariant },
         animatedStyle,
         style,
       ]}

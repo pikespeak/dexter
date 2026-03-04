@@ -1,6 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { colors, fonts, spacing, radius } from "../lib/theme";
+import { Button, Icon, Text } from "react-native-paper";
+import { useAppTheme, spacing } from "../lib/theme";
 
 interface Props {
   message?: string;
@@ -10,102 +11,57 @@ interface Props {
 
 export default function ErrorState({ message, onRetry, compact }: Props) {
   const { t } = useTranslation();
+  const theme = useAppTheme();
 
   if (compact) {
     return (
-      <View style={s.compactContainer}>
-        <Text style={s.compactIcon}>!</Text>
-        <Text style={s.compactMessage} numberOfLines={1}>
+      <View style={[styles.compactContainer, { backgroundColor: theme.colors.errorContainer, borderColor: theme.colors.error }]}>
+        <Icon source="alert-circle" size={16} color={theme.colors.error} />
+        <Text
+          variant="bodySmall"
+          numberOfLines={1}
+          style={{ flex: 1, marginLeft: spacing.sm, color: theme.colors.onErrorContainer }}
+        >
           {message || t("common.error")}
         </Text>
         {onRetry && (
-          <Pressable onPress={onRetry} style={s.compactRetry}>
-            <Text style={s.compactRetryText}>{t("common.retry").toUpperCase()}</Text>
-          </Pressable>
+          <Button mode="text" onPress={onRetry} compact>
+            {t("common.retry").toUpperCase()}
+          </Button>
         )}
       </View>
     );
   }
 
   return (
-    <View style={s.container}>
-      <Text style={s.icon}>!</Text>
-      <Text style={s.message}>{message || t("common.error")}</Text>
+    <View style={styles.container}>
+      <Icon source="alert-circle-outline" size={32} color={theme.colors.error} />
+      <Text variant="bodyMedium" style={{ textAlign: "center", marginVertical: spacing.md, color: theme.colors.onSurfaceVariant }}>
+        {message || t("common.error")}
+      </Text>
       {onRetry && (
-        <Pressable onPress={onRetry} style={s.retryBtn}>
-          <Text style={s.retryText}>{t("common.retry").toUpperCase()}</Text>
-        </Pressable>
+        <Button mode="outlined" onPress={onRetry}>
+          {t("common.retry").toUpperCase()}
+        </Button>
       )}
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.lg,
   },
-  icon: {
-    fontSize: 28,
-    color: colors.error,
-    fontWeight: "800",
-    marginBottom: spacing.md,
-  },
-  message: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
-  retryBtn: {
-    backgroundColor: colors.accentSubtle,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-  },
-  retryText: {
-    color: colors.accent,
-    fontSize: 11,
-    fontFamily: fonts.mono,
-    fontWeight: "700",
-    letterSpacing: 2,
-  },
   compactContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.errorBg,
     borderWidth: 1,
-    borderColor: colors.lossBorder,
-    borderRadius: radius.sm,
+    borderRadius: 8,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginHorizontal: spacing.lg,
     marginVertical: spacing.xs,
-  },
-  compactIcon: {
-    fontSize: 14,
-    color: colors.error,
-    fontWeight: "800",
-    marginRight: spacing.sm,
-  },
-  compactMessage: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  compactRetry: {
-    marginLeft: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  compactRetryText: {
-    color: colors.accent,
-    fontSize: 10,
-    fontFamily: fonts.mono,
-    fontWeight: "700",
-    letterSpacing: 1,
   },
 });

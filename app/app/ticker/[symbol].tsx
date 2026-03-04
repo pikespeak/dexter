@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from "react-native";
+import { View, ScrollView, RefreshControl, StyleSheet } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { IconButton, Chip, SegmentedButtons, List, Divider, Text } from "react-native-paper";
 import { useAppStore } from "../../lib/store";
 import {
   getPriceSnapshot, getPrices, getMetricsSnapshot,
@@ -21,15 +22,15 @@ import FinancialTable from "../../components/FinancialTable";
 import NewsFeed from "../../components/NewsFeed";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import ErrorState from "../../components/ErrorState";
-import { colors, fonts, spacing, radius } from "../../lib/theme";
+import { useAppTheme, spacing } from "../../lib/theme";
 
 type FinancialTab = "income" | "balance" | "cashflow";
-
 type SectionKey = "price" | "company" | "chart" | "metrics" | "financials" | "news" | "filings" | "insiderTrades" | "estimates" | "segments";
 
 export default function TickerDetailScreen() {
   const { symbol } = useLocalSearchParams<{ symbol: string }>();
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const ticker = symbol?.toUpperCase() || "";
 
   const isInWatchlist = useAppStore((s) => s.isInWatchlist);
@@ -78,18 +79,18 @@ export default function TickerDetailScreen() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
     const results = await Promise.allSettled([
-      getPriceSnapshot(ticker),         // 0
-      getCompany(ticker),               // 1
-      getPrices(ticker, { start_date: thirtyDaysAgo, end_date: today }), // 2
-      getMetricsSnapshot(ticker),       // 3
-      getIncome(ticker, { period: "annual", limit: 5 }),    // 4
-      getBalance(ticker, { period: "annual", limit: 5 }),   // 5
-      getCashflow(ticker, { period: "annual", limit: 5 }),  // 6
-      getNews(ticker, { limit: 5 }),    // 7
-      getFilings(ticker, { limit: 5 }), // 8
-      getInsiderTrades(ticker, { limit: 10 }), // 9
-      getEstimates(ticker, { limit: 5 }),      // 10
-      getSegments(ticker, { period: "annual", limit: 5 }),  // 11
+      getPriceSnapshot(ticker),
+      getCompany(ticker),
+      getPrices(ticker, { start_date: thirtyDaysAgo, end_date: today }),
+      getMetricsSnapshot(ticker),
+      getIncome(ticker, { period: "annual", limit: 5 }),
+      getBalance(ticker, { period: "annual", limit: 5 }),
+      getCashflow(ticker, { period: "annual", limit: 5 }),
+      getNews(ticker, { limit: 5 }),
+      getFilings(ticker, { limit: 5 }),
+      getInsiderTrades(ticker, { limit: 10 }),
+      getEstimates(ticker, { limit: 5 }),
+      getSegments(ticker, { period: "annual", limit: 5 }),
     ]);
 
     const handle = <T,>(idx: number, setter: (v: T) => void, key: SectionKey) => {
@@ -201,18 +202,18 @@ export default function TickerDetailScreen() {
         options={{
           title: ticker,
           headerRight: () => (
-            <Pressable onPress={toggleWatchlist} style={{ paddingRight: 8 }}>
-              <Text style={{ fontSize: 20, color: inWatchlist ? colors.accent : colors.textMuted }}>
-                {inWatchlist ? "★" : "☆"}
-              </Text>
-            </Pressable>
+            <IconButton
+              icon={inWatchlist ? "star" : "star-outline"}
+              iconColor={inWatchlist ? theme.colors.primary : theme.colors.onSurfaceVariant}
+              onPress={toggleWatchlist}
+            />
           ),
         }}
       />
       <ScrollView
-        style={st.container}
+        style={[st.container, { backgroundColor: theme.colors.background }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
       >
         {loading ? (
           <View style={{ padding: spacing.lg, gap: spacing.md }}>
@@ -228,27 +229,33 @@ export default function TickerDetailScreen() {
             {sectionErrors.price ? (
               <ErrorState compact message={sectionErrors.price} onRetry={() => retrySection("price")} />
             ) : (
-              <View style={st.priceHeader}>
-                <Text style={st.companyName}>{company?.name || ticker}</Text>
+              <View style={[st.priceHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>
+                  {company?.name || ticker}
+                </Text>
                 <View style={st.priceRow}>
                   {price != null && (
-                    <Text style={st.price}>${price.toFixed(2)}</Text>
+                    <Text variant="displaySmall" style={{ fontWeight: "800", letterSpacing: -1 }}>${price.toFixed(2)}</Text>
                   )}
                   {changePercent != null && (
-                    <View style={[st.changeBadge, isPositive ? st.changeBadgeGain : st.changeBadgeLoss]}>
-                      <Text style={[st.changeText, { color: isPositive ? colors.gain : colors.loss }]}>
-                        {isPositive ? "▲" : "▼"} {Math.abs(changePercent).toFixed(2)}%
-                      </Text>
-                    </View>
+                    <Chip
+                      compact
+                      style={{ backgroundColor: isPositive ? theme.finance.gainBg : theme.finance.lossBg }}
+                      textStyle={{ color: isPositive ? theme.finance.gain : theme.finance.loss, fontWeight: "700" }}
+                    >
+                      {isPositive ? "▲" : "▼"} {Math.abs(changePercent).toFixed(2)}%
+                    </Chip>
                   )}
                 </View>
-                <Text style={st.tickerLabel}>{ticker} · {company?.exchange || "NYSE"}</Text>
+                <Text variant="labelSmall" style={{ letterSpacing: 2, color: theme.colors.onSurfaceVariant, marginTop: spacing.sm }}>
+                  {ticker} · {company?.exchange || "NYSE"}
+                </Text>
               </View>
             )}
 
             {/* Chart */}
             <View style={st.section}>
-              <SectionHeader label={t("ticker.price_chart")} />
+              <SectionHeader theme={theme} label={t("ticker.price_chart")} />
               {sectionErrors.chart ? (
                 <ErrorState compact message={sectionErrors.chart} onRetry={() => retrySection("chart")} />
               ) : (
@@ -258,7 +265,7 @@ export default function TickerDetailScreen() {
 
             {/* Metrics */}
             <View style={st.section}>
-              <SectionHeader label={t("ticker.key_metrics")} />
+              <SectionHeader theme={theme} label={t("ticker.key_metrics")} />
               {sectionErrors.metrics ? (
                 <ErrorState compact message={sectionErrors.metrics} onRetry={() => retrySection("metrics")} />
               ) : metrics ? (
@@ -273,24 +280,21 @@ export default function TickerDetailScreen() {
 
             {/* Financials */}
             <View style={st.section}>
-              <SectionHeader label={t("ticker.financials")} />
+              <SectionHeader theme={theme} label={t("ticker.financials")} />
               {sectionErrors.financials ? (
                 <ErrorState compact message={sectionErrors.financials} onRetry={() => retrySection("financials")} />
               ) : (
                 <>
-                  <View style={st.tabRow}>
-                    {(["income", "balance", "cashflow"] as const).map((tab) => (
-                      <Pressable
-                        key={tab}
-                        onPress={() => setFinancialTab(tab)}
-                        style={[st.tabBtn, financialTab === tab && st.tabBtnActive]}
-                      >
-                        <Text style={[st.tabText, financialTab === tab && st.tabTextActive]}>
-                          {t(`ticker.${tab}`).toUpperCase()}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <SegmentedButtons
+                    value={financialTab}
+                    onValueChange={(v) => setFinancialTab(v as FinancialTab)}
+                    buttons={[
+                      { value: "income", label: t("ticker.income").toUpperCase() },
+                      { value: "balance", label: t("ticker.balance").toUpperCase() },
+                      { value: "cashflow", label: t("ticker.cashflow").toUpperCase() },
+                    ]}
+                    style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }}
+                  />
                   <FinancialTable
                     data={financialTab === "income" ? income : financialTab === "balance" ? balance : cashflow}
                     columns={financialTab === "income" ? incomeColumns : financialTab === "balance" ? balanceColumns : cashflowColumns}
@@ -300,48 +304,50 @@ export default function TickerDetailScreen() {
             </View>
 
             {/* Analyst Estimates */}
-            <View style={[st.section, { paddingHorizontal: spacing.lg }]}>
-              <Pressable onPress={() => setShowEstimates((v) => !v)} style={st.collapseHeader}>
-                <View style={st.sectionLabelWrap}>
-                  <View style={st.sectionDot} />
-                  <Text style={st.sectionLabel}>{t("ticker.estimates").toUpperCase()}</Text>
-                </View>
-                <Text style={{ color: colors.textMuted, fontFamily: fonts.mono }}>{showEstimates ? "−" : "+"}</Text>
-              </Pressable>
-              {showEstimates && (
-                sectionErrors.estimates ? (
+            <View style={st.section}>
+              <List.Accordion
+                title={t("ticker.estimates").toUpperCase()}
+                titleStyle={{ fontSize: 11, letterSpacing: 3, color: theme.colors.onSurfaceVariant }}
+                expanded={showEstimates}
+                onPress={() => setShowEstimates((v) => !v)}
+                style={{ paddingHorizontal: spacing.lg }}
+              >
+                {sectionErrors.estimates ? (
                   <ErrorState compact message={sectionErrors.estimates} onRetry={() => retrySection("estimates")} />
                 ) : estimates.length > 0 ? (
                   <FinancialTable data={estimates} columns={estimateColumns.slice(0, 4)} />
                 ) : (
-                  <Text style={st.noData}>{t("ticker.no_data")}</Text>
-                )
-              )}
+                  <Text variant="bodySmall" style={{ textAlign: "center", padding: spacing.md, color: theme.colors.onSurfaceVariant }}>
+                    {t("ticker.no_data")}
+                  </Text>
+                )}
+              </List.Accordion>
             </View>
 
             {/* Revenue Segments */}
-            <View style={[st.section, { paddingHorizontal: spacing.lg }]}>
-              <Pressable onPress={() => setShowSegments((v) => !v)} style={st.collapseHeader}>
-                <View style={st.sectionLabelWrap}>
-                  <View style={st.sectionDot} />
-                  <Text style={st.sectionLabel}>{t("ticker.segments").toUpperCase()}</Text>
-                </View>
-                <Text style={{ color: colors.textMuted, fontFamily: fonts.mono }}>{showSegments ? "−" : "+"}</Text>
-              </Pressable>
-              {showSegments && (
-                sectionErrors.segments ? (
+            <View style={st.section}>
+              <List.Accordion
+                title={t("ticker.segments").toUpperCase()}
+                titleStyle={{ fontSize: 11, letterSpacing: 3, color: theme.colors.onSurfaceVariant }}
+                expanded={showSegments}
+                onPress={() => setShowSegments((v) => !v)}
+                style={{ paddingHorizontal: spacing.lg }}
+              >
+                {sectionErrors.segments ? (
                   <ErrorState compact message={sectionErrors.segments} onRetry={() => retrySection("segments")} />
                 ) : segments.length > 0 ? (
                   <FinancialTable data={segments} columns={segmentColumns.slice(0, 4)} />
                 ) : (
-                  <Text style={st.noData}>{t("ticker.no_data")}</Text>
-                )
-              )}
+                  <Text variant="bodySmall" style={{ textAlign: "center", padding: spacing.md, color: theme.colors.onSurfaceVariant }}>
+                    {t("ticker.no_data")}
+                  </Text>
+                )}
+              </List.Accordion>
             </View>
 
             {/* News */}
             <View style={st.section}>
-              <SectionHeader label={t("ticker.news")} />
+              <SectionHeader theme={theme} label={t("ticker.news")} />
               {sectionErrors.news ? (
                 <ErrorState compact message={sectionErrors.news} onRetry={() => retrySection("news")} />
               ) : (
@@ -350,32 +356,34 @@ export default function TickerDetailScreen() {
             </View>
 
             {/* Filings */}
-            <View style={[st.section, { paddingHorizontal: spacing.lg }]}>
-              <Pressable onPress={() => setShowFilings((v) => !v)} style={st.collapseHeader}>
-                <View style={st.sectionLabelWrap}>
-                  <View style={st.sectionDot} />
-                  <Text style={st.sectionLabel}>{t("ticker.filings").toUpperCase()}</Text>
-                </View>
-                <Text style={{ color: colors.textMuted, fontFamily: fonts.mono }}>{showFilings ? "−" : "+"}</Text>
-              </Pressable>
-              {showFilings && (
-                sectionErrors.filings ? (
+            <View style={st.section}>
+              <List.Accordion
+                title={t("ticker.filings").toUpperCase()}
+                titleStyle={{ fontSize: 11, letterSpacing: 3, color: theme.colors.onSurfaceVariant }}
+                expanded={showFilings}
+                onPress={() => setShowFilings((v) => !v)}
+                style={{ paddingHorizontal: spacing.lg }}
+              >
+                {sectionErrors.filings ? (
                   <ErrorState compact message={sectionErrors.filings} onRetry={() => retrySection("filings")} />
                 ) : filings.map((f, i) => (
                   <View key={i}>
-                    <Pressable onPress={() => handleFilingTap(i)} style={st.filingItem}>
-                      <Text style={st.filingType}>{f.filing_type}</Text>
-                      <Text style={st.filingDate}>{f.filing_date}</Text>
-                    </Pressable>
+                    <List.Item
+                      title={f.filing_type}
+                      titleStyle={{ fontWeight: "600" }}
+                      description={f.filing_date}
+                      onPress={() => handleFilingTap(i)}
+                      right={(props) => <List.Icon {...props} icon={expandedFiling === i ? "chevron-up" : "chevron-down"} />}
+                    />
                     {expandedFiling === i && filingItems.length > 0 && (
-                      <View style={st.filingDetails}>
+                      <View style={[st.filingDetails, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
                         {filingItems.map((item, j) => (
-                          <View key={j} style={st.filingDetailRow}>
+                          <View key={j} style={{ marginBottom: spacing.xs }}>
                             {Object.entries(item)
                               .filter(([k]) => k !== "ticker")
                               .slice(0, 3)
                               .map(([k, v]) => (
-                                <Text key={k} style={st.filingDetailText}>
+                                <Text key={k} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 18 }}>
                                   {k.replace(/_/g, " ")}: {String(v ?? "—")}
                                 </Text>
                               ))}
@@ -383,32 +391,41 @@ export default function TickerDetailScreen() {
                         ))}
                       </View>
                     )}
+                    <Divider />
                   </View>
-                ))
-              )}
+                ))}
+              </List.Accordion>
             </View>
 
             {/* Insider Trades */}
             {insiderTrades.length > 0 && (
               <View style={[st.section, { paddingHorizontal: spacing.lg, marginBottom: spacing.xxxl }]}>
-                <SectionHeader label={t("ticker.insider_trades")} inline />
+                <SectionHeader theme={theme} label={t("ticker.insider_trades")} inline />
                 {sectionErrors.insiderTrades ? (
                   <ErrorState compact message={sectionErrors.insiderTrades} onRetry={() => retrySection("insiderTrades")} />
                 ) : (
                   insiderTrades.map((trade, i) => (
-                    <View key={i} style={st.tradeItem}>
-                      <View style={st.tradeRow}>
-                        <Text style={st.tradeName}>{trade.owner_name}</Text>
-                        <Text style={[st.tradeType, {
-                          color: trade.transaction_type?.toLowerCase().includes("buy") ? colors.gain : colors.loss
-                        }]}>
-                          {trade.transaction_type?.toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text style={st.tradeDetail}>
-                        {trade.shares?.toLocaleString()} shares @ ${trade.price_per_share?.toFixed(2)}
-                      </Text>
-                      <Text style={st.tradeDate}>{trade.trade_date}</Text>
+                    <View key={i}>
+                      <List.Item
+                        title={trade.owner_name}
+                        titleStyle={{ fontWeight: "600" }}
+                        description={`${trade.shares?.toLocaleString()} shares @ $${trade.price_per_share?.toFixed(2)} · ${trade.trade_date}`}
+                        right={() => (
+                          <Text
+                            variant="labelSmall"
+                            style={{
+                              alignSelf: "center",
+                              fontWeight: "700",
+                              letterSpacing: 1,
+                              color: trade.transaction_type?.toLowerCase().includes("buy") ? theme.finance.gain : theme.finance.loss,
+                            }}
+                          >
+                            {trade.transaction_type?.toUpperCase()}
+                          </Text>
+                        )}
+                        style={{ paddingHorizontal: 0 }}
+                      />
+                      {i < insiderTrades.length - 1 && <Divider />}
                     </View>
                   ))
                 )}
@@ -422,51 +439,27 @@ export default function TickerDetailScreen() {
   );
 }
 
-function SectionHeader({ label, inline }: { label: string; inline?: boolean }) {
+function SectionHeader({ theme, label, inline }: { theme: ReturnType<typeof useAppTheme>; label: string; inline?: boolean }) {
   return (
     <View style={[st.sectionHeaderWrap, !inline && { paddingHorizontal: spacing.lg }]}>
       <View style={st.sectionLabelWrap}>
-        <View style={st.sectionDot} />
-        <Text style={st.sectionLabel}>{label.toUpperCase()}</Text>
+        <View style={[st.sectionDot, { backgroundColor: theme.colors.primary }]} />
+        <Text variant="labelSmall" style={{ letterSpacing: 3, color: theme.colors.onSurfaceVariant }}>
+          {label.toUpperCase()}
+        </Text>
       </View>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  priceHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xl, borderBottomWidth: 1, borderBottomColor: colors.border },
-  companyName: { fontSize: 14, color: colors.textSecondary, fontFamily: fonts.body, marginBottom: 4 },
+  container: { flex: 1 },
+  priceHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xl, borderBottomWidth: 1 },
   priceRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  price: { fontSize: 36, fontWeight: "800", color: colors.textPrimary, fontFamily: fonts.mono, letterSpacing: -1 },
-  changeBadge: { borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  changeBadgeGain: { backgroundColor: colors.gainBg, borderColor: colors.gainBorder },
-  changeBadgeLoss: { backgroundColor: colors.lossBg, borderColor: colors.lossBorder },
-  changeText: { fontSize: 13, fontFamily: fonts.mono, fontWeight: "700", letterSpacing: 0.5 },
-  tickerLabel: { fontSize: 11, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2, marginTop: spacing.sm },
   section: { marginTop: spacing.xxl },
   sectionHeaderWrap: { flexDirection: "row", alignItems: "center", marginBottom: spacing.md },
   sectionLabelWrap: { flexDirection: "row", alignItems: "center" },
-  sectionDot: { width: 3, height: 3, backgroundColor: colors.accent, marginRight: spacing.sm },
-  sectionLabel: { fontSize: 11, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 3 },
+  sectionDot: { width: 3, height: 3, marginRight: spacing.sm },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.md },
-  tabRow: { flexDirection: "row", paddingHorizontal: spacing.lg, marginBottom: spacing.md, gap: spacing.sm },
-  tabBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder },
-  tabBtnActive: { borderColor: colors.accent, backgroundColor: colors.accentSubtle },
-  tabText: { fontSize: 10, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2 },
-  tabTextActive: { color: colors.accent },
-  collapseHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
-  filingItem: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  filingType: { fontSize: 13, fontFamily: fonts.mono, color: colors.textPrimary, fontWeight: "600" },
-  filingDate: { fontSize: 12, fontFamily: fonts.mono, color: colors.textMuted },
-  filingDetails: { backgroundColor: colors.bgCard, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.glassBorder },
-  filingDetailRow: { marginBottom: spacing.xs },
-  filingDetailText: { fontSize: 11, fontFamily: fonts.mono, color: colors.textSecondary, lineHeight: 18 },
-  noData: { fontSize: 12, fontFamily: fonts.mono, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.md },
-  tradeItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  tradeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  tradeName: { fontSize: 13, color: colors.textPrimary, fontWeight: "600" },
-  tradeType: { fontSize: 10, fontFamily: fonts.mono, fontWeight: "700", letterSpacing: 1 },
-  tradeDetail: { fontSize: 12, fontFamily: fonts.mono, color: colors.textSecondary, marginTop: 2 },
-  tradeDate: { fontSize: 11, fontFamily: fonts.mono, color: colors.textMuted, marginTop: 2 },
+  filingDetails: { borderRadius: 8, padding: spacing.md, marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderWidth: 1 },
 });

@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet } from "react-native";
-import { colors, fonts, spacing, radius } from "../lib/theme";
+import { StyleSheet } from "react-native";
+import { Card, Text } from "react-native-paper";
+import { spacing } from "../lib/theme";
 
 interface Props {
   label: string;
@@ -17,15 +18,19 @@ export default function MetricCard({ label, value }: Props) {
     : String(value);
 
   return (
-    <View style={s.card}>
-      <Text style={s.label}>{label.toUpperCase()}</Text>
-      <Text style={s.value}>{formatted}</Text>
-    </View>
+    <Card mode="outlined" style={styles.card}>
+      <Card.Content>
+        <Text variant="labelSmall" style={{ letterSpacing: 2, marginBottom: spacing.xs }}>
+          {label.toUpperCase()}
+        </Text>
+        <Text variant="headlineSmall" style={{ fontWeight: "700" }}>
+          {formatted}
+        </Text>
+      </Card.Content>
+    </Card>
   );
 }
 
-const s = StyleSheet.create({
-  card: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, padding: spacing.md, flex: 1, minWidth: "44%" as unknown as number, margin: 4 },
-  label: { fontSize: 9, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2, marginBottom: spacing.xs },
-  value: { fontSize: 18, fontWeight: "700", color: colors.textPrimary, fontFamily: fonts.mono },
+const styles = StyleSheet.create({
+  card: { flex: 1, minWidth: "44%" as unknown as number, margin: 4 },
 });

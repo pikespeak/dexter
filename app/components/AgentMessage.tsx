@@ -1,8 +1,9 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useState } from "react";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { Surface, Chip, Button, Text } from "react-native-paper";
 import SimpleMarkdown from "./SimpleMarkdown";
-import { colors, fonts, spacing, radius } from "../lib/theme";
+import { useAppTheme, spacing } from "../lib/theme";
 
 export type MessageType = "user" | "thinking" | "tool" | "answer" | "error";
 
@@ -14,88 +15,87 @@ interface Props {
 }
 
 export default function AgentMessage({ type, content, toolName, onRetry }: Props) {
+  const theme = useAppTheme();
   const [expanded, setExpanded] = useState(false);
 
   if (type === "user") {
     return (
-      <Animated.View entering={FadeIn} style={s.userWrap}>
-        <View style={s.userBubble}>
-          <Text style={s.userText}>{content}</Text>
-        </View>
+      <Animated.View entering={FadeIn} style={styles.userWrap}>
+        <Surface style={[styles.userBubble, { backgroundColor: theme.finance.userBubble }]} elevation={1}>
+          <Text style={{ color: theme.colors.onPrimary, fontSize: 15, fontWeight: "500" }}>{content}</Text>
+        </Surface>
       </Animated.View>
     );
   }
 
   if (type === "thinking") {
     return (
-      <Animated.View entering={FadeIn} style={s.botWrap}>
-        <View style={s.thinkingBubble}>
-          <Text style={s.thinkingLabel}>PROCESSING</Text>
-          <Text style={s.thinkingText}>{content || "Analyzing..."}</Text>
-        </View>
+      <Animated.View entering={FadeIn} style={styles.botWrap}>
+        <Surface style={styles.botBubble} elevation={1}>
+          <Text variant="labelSmall" style={{ letterSpacing: 2, marginBottom: 4, color: theme.colors.onSurfaceVariant }}>
+            PROCESSING
+          </Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 14, fontStyle: "italic" }}>
+            {content || "Analyzing..."}
+          </Text>
+        </Surface>
       </Animated.View>
     );
   }
 
   if (type === "tool") {
     return (
-      <Animated.View entering={FadeIn} style={s.botWrap}>
-        <Pressable onPress={() => setExpanded(!expanded)} style={s.toolBubble}>
-          <View style={s.toolHeader}>
-            <View style={s.toolDot} />
-            <Text style={s.toolLabel}>{toolName || "TOOL"}</Text>
-            <Text style={s.toolToggle}>{expanded ? "−" : "+"}</Text>
-          </View>
-          {expanded && content ? <Text style={s.toolContent}>{content}</Text> : null}
-        </Pressable>
+      <Animated.View entering={FadeIn} style={styles.botWrap}>
+        <Surface style={[styles.botBubble, { backgroundColor: theme.finance.toolBg }]} elevation={0}>
+          <Chip
+            icon="wrench-outline"
+            onPress={() => setExpanded(!expanded)}
+            mode="outlined"
+            compact
+          >
+            {toolName || "TOOL"}
+          </Chip>
+          {expanded && content ? (
+            <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, marginTop: spacing.sm, lineHeight: 18 }}>
+              {content}
+            </Text>
+          ) : null}
+        </Surface>
       </Animated.View>
     );
   }
 
   if (type === "error") {
     return (
-      <Animated.View entering={FadeIn} style={s.botWrap}>
-        <View style={s.errorBubble}>
-          <Text style={s.errorLabel}>ERROR</Text>
-          <Text style={s.errorText}>{content}</Text>
+      <Animated.View entering={FadeIn} style={styles.botWrap}>
+        <Surface style={[styles.botBubble, { backgroundColor: theme.colors.errorContainer }]} elevation={1}>
+          <Text variant="labelSmall" style={{ letterSpacing: 2, marginBottom: 4, color: theme.colors.error }}>
+            ERROR
+          </Text>
+          <Text style={{ color: theme.colors.error, fontSize: 15 }}>{content}</Text>
           {onRetry && (
-            <Pressable onPress={onRetry} style={s.retryBtn}>
-              <Text style={s.retryText}>RETRY</Text>
-            </Pressable>
+            <Button mode="text" onPress={onRetry} compact style={{ alignSelf: "flex-start", marginTop: spacing.xs }}>
+              RETRY
+            </Button>
           )}
-        </View>
+        </Surface>
       </Animated.View>
     );
   }
 
-  // answer — render with markdown
+  // answer
   return (
-    <Animated.View entering={FadeIn} style={s.botWrap}>
-      <View style={s.answerBubble}>
+    <Animated.View entering={FadeIn} style={styles.botWrap}>
+      <Surface style={styles.botBubble} elevation={1}>
         <SimpleMarkdown content={content} />
-      </View>
+      </Surface>
     </Animated.View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   userWrap: { alignSelf: "flex-end", maxWidth: "80%", marginBottom: spacing.sm },
-  userBubble: { backgroundColor: colors.accent, borderRadius: radius.md, borderBottomRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
-  userText: { color: colors.textInverse, fontSize: 15, fontWeight: "500" },
+  userBubble: { borderRadius: 14, borderBottomRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
   botWrap: { alignSelf: "flex-start", maxWidth: "85%", marginBottom: spacing.sm },
-  thinkingBubble: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.md, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
-  thinkingLabel: { fontSize: 9, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2, marginBottom: 4 },
-  thinkingText: { color: colors.textSecondary, fontSize: 14, fontStyle: "italic" },
-  toolBubble: { backgroundColor: colors.toolBg, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingHorizontal: 14, paddingVertical: 10 },
-  toolHeader: { flexDirection: "row", alignItems: "center" },
-  toolDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.info, marginRight: 8 },
-  toolLabel: { fontSize: 11, fontFamily: fonts.mono, fontWeight: "600", color: colors.info, letterSpacing: 1, flex: 1 },
-  toolToggle: { color: colors.textMuted, fontFamily: fonts.mono },
-  toolContent: { fontSize: 12, fontFamily: fonts.mono, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 18 },
-  errorBubble: { backgroundColor: colors.errorBg, borderWidth: 1, borderColor: colors.lossBorder, borderRadius: radius.md, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
-  errorLabel: { fontSize: 9, fontFamily: fonts.mono, color: colors.loss, letterSpacing: 2, marginBottom: 4 },
-  errorText: { color: colors.loss, fontSize: 15 },
-  retryBtn: { marginTop: spacing.sm, alignSelf: "flex-start", paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.accentSubtle, borderRadius: radius.sm },
-  retryText: { fontSize: 10, fontFamily: fonts.mono, color: colors.accent, fontWeight: "700", letterSpacing: 1 },
-  answerBubble: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.md, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  botBubble: { borderRadius: 14, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
 });

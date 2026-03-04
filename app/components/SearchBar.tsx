@@ -1,10 +1,11 @@
-import { View, TextInput, Pressable, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { View } from "react-native";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { Searchbar } from "react-native-paper";
 import { searchTickers } from "../lib/api-client";
 import type { SearchResult } from "../lib/types";
 import SearchResults from "./SearchResults";
-import { colors, fonts, spacing, radius } from "../lib/theme";
+import { spacing } from "../lib/theme";
 
 interface Props {
   onSearch: (query: string) => void;
@@ -66,27 +67,18 @@ export default function SearchBar({ onSearch }: Props) {
 
   return (
     <View>
-      <View style={s.container}>
-        <Text style={s.prefix}>$</Text>
-        <TextInput
-          style={s.input}
-          placeholder={t("search.placeholder")}
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={handleChangeText}
-          onSubmitEditing={handleSubmit}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {searching ? (
-          <ActivityIndicator size="small" color={colors.accent} style={{ marginRight: spacing.sm }} />
-        ) : query.length > 0 ? (
-          <Pressable onPress={handleSubmit} style={s.goBtn}>
-            <Text style={s.goText}>→</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <Searchbar
+        placeholder={t("search.placeholder")}
+        value={query}
+        onChangeText={handleChangeText}
+        onSubmitEditing={handleSubmit}
+        icon="currency-usd"
+        loading={searching}
+        style={{ marginHorizontal: spacing.lg, marginTop: spacing.md }}
+        inputStyle={{ letterSpacing: 1 }}
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
       <SearchResults
         results={results}
         loading={searching}
@@ -96,11 +88,3 @@ export default function SearchBar({ onSearch }: Props) {
     </View>
   );
 }
-
-const s = StyleSheet.create({
-  container: { flexDirection: "row", alignItems: "center", backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingHorizontal: 16, marginHorizontal: spacing.lg, marginTop: spacing.md },
-  prefix: { fontFamily: fonts.mono, color: colors.accent, fontSize: 16, marginRight: spacing.sm },
-  input: { flex: 1, fontSize: 15, color: colors.textPrimary, fontFamily: fonts.mono, paddingVertical: 14, letterSpacing: 1 },
-  goBtn: { backgroundColor: colors.accent, borderRadius: radius.sm, width: 32, height: 32, alignItems: "center", justifyContent: "center" },
-  goText: { color: colors.textInverse, fontSize: 16, fontWeight: "700" },
-});

@@ -1,86 +1,148 @@
-import { Platform, StyleSheet } from "react-native";
+import { MD3LightTheme, MD3DarkTheme, useTheme } from "react-native-paper";
+import type { MD3Theme } from "react-native-paper";
 
-// Glassmorphism Dark — Premium Finance Aesthetic
-export const colors = {
-  // Core
-  bg: "#0c0f1a",
-  bgCard: "rgba(255,255,255,0.05)",
-  bgCardHover: "rgba(255,255,255,0.08)",
-  bgElevated: "rgba(255,255,255,0.07)",
-  bgInput: "rgba(255,255,255,0.04)",
+// ── Finance extension ──────────────────────────────────────────────
+interface FinanceColors {
+  gain: string;
+  gainBg: string;
+  loss: string;
+  lossBg: string;
+  info: string;
+  infoBg: string;
+  warning: string;
+  userBubble: string;
+  botBubble: string;
+  toolBg: string;
+}
 
-  // Borders
-  border: "rgba(255,255,255,0.08)",
-  borderLight: "rgba(255,255,255,0.12)",
-  borderAccent: "#00d4aa",
+export interface AppTheme extends MD3Theme {
+  finance: FinanceColors;
+}
 
-  // Glass
-  glassBorder: "rgba(255,255,255,0.10)",
-  glassHighlight: "rgba(255,255,255,0.04)",
-
-  // Text
-  textPrimary: "#f1f5f9",
-  textSecondary: "#94a3b8",
-  textMuted: "#64748b",
-  textInverse: "#0c0f1a",
-
-  // Accent — Cyan/Teal
-  accent: "#00d4aa",
-  accentLight: "#33e0be",
-  accentDark: "#00b893",
-  accentSubtle: "rgba(0, 212, 170, 0.12)",
-
-  // Legacy alias
-  gold: "#00d4aa",
-  goldLight: "#33e0be",
-  goldDark: "#00b893",
-  goldSubtle: "rgba(0, 212, 170, 0.12)",
-
-  // Market
-  gain: "#00e676",
-  gainBg: "rgba(0, 230, 118, 0.08)",
-  gainBorder: "rgba(0, 230, 118, 0.2)",
-  loss: "#ff1744",
-  lossBg: "rgba(255, 23, 68, 0.08)",
-  lossBorder: "rgba(255, 23, 68, 0.2)",
-
-  // Semantic
-  info: "#38bdf8",
-  infoBg: "rgba(56, 189, 248, 0.08)",
-  warning: "#fbbf24",
-  error: "#ff1744",
-  errorBg: "rgba(255, 23, 68, 0.08)",
-
-  // Agent
-  userBubble: "#00d4aa",
-  botBubble: "rgba(255,255,255,0.05)",
-  toolBg: "rgba(56, 189, 248, 0.06)",
-
-  // Tab bar
-  tabActive: "#00d4aa",
-  tabInactive: "#475569",
-  tabBg: "#0a0d16",
+// ── Light Theme ────────────────────────────────────────────────────
+export const lightTheme: AppTheme = {
+  ...MD3LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: "#00897B",
+    onPrimary: "#FFFFFF",
+    primaryContainer: "#A7F3EC",
+    onPrimaryContainer: "#002019",
+    secondary: "#4A635F",
+    onSecondary: "#FFFFFF",
+    secondaryContainer: "#CCE8E2",
+    onSecondaryContainer: "#06201C",
+    tertiary: "#456179",
+    onTertiary: "#FFFFFF",
+    tertiaryContainer: "#CCE5FF",
+    onTertiaryContainer: "#001E31",
+    error: "#BA1A1A",
+    onError: "#FFFFFF",
+    errorContainer: "#FFDAD6",
+    onErrorContainer: "#410002",
+    background: "#F5FBF8",
+    onBackground: "#171D1B",
+    surface: "#F5FBF8",
+    onSurface: "#171D1B",
+    surfaceVariant: "#DAE5E1",
+    onSurfaceVariant: "#3F4946",
+    outline: "#6F7976",
+    outlineVariant: "#BEC9C5",
+    inverseSurface: "#2B3230",
+    inverseOnSurface: "#ECF2EF",
+    inversePrimary: "#4DB6AC",
+    elevation: {
+      ...MD3LightTheme.colors.elevation,
+      level0: "transparent",
+      level1: "#EEF6F3",
+      level2: "#E6F1ED",
+      level3: "#DFECE8",
+      level4: "#DDE9E6",
+      level5: "#D8E6E2",
+    },
+    surfaceDisabled: "rgba(23, 29, 27, 0.12)",
+    onSurfaceDisabled: "rgba(23, 29, 27, 0.38)",
+    backdrop: "rgba(0, 0, 0, 0.4)",
+  },
+  finance: {
+    gain: "#2E7D32",
+    gainBg: "rgba(46, 125, 50, 0.08)",
+    loss: "#C62828",
+    lossBg: "rgba(198, 40, 40, 0.08)",
+    info: "#0277BD",
+    infoBg: "rgba(2, 119, 189, 0.08)",
+    warning: "#F9A825",
+    userBubble: "#00897B",
+    botBubble: "#EEF6F3",
+    toolBg: "rgba(2, 119, 189, 0.06)",
+  },
 };
 
-export const fonts = {
-  mono: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
-  display: Platform.select({
-    ios: "Avenir-Heavy",
-    android: "sans-serif-condensed",
-    default: "system-ui",
-  }),
-  body: Platform.select({
-    ios: "Avenir-Medium",
-    android: "sans-serif-medium",
-    default: "system-ui",
-  }),
-  light: Platform.select({
-    ios: "Avenir-Light",
-    android: "sans-serif-light",
-    default: "system-ui",
-  }),
+// ── Dark Theme ─────────────────────────────────────────────────────
+export const darkTheme: AppTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    primary: "#4DB6AC",
+    onPrimary: "#003731",
+    primaryContainer: "#005048",
+    onPrimaryContainer: "#A7F3EC",
+    secondary: "#B1CCC7",
+    onSecondary: "#1C3531",
+    secondaryContainer: "#334B47",
+    onSecondaryContainer: "#CCE8E2",
+    tertiary: "#ADC9E5",
+    onTertiary: "#153349",
+    tertiaryContainer: "#2D4961",
+    onTertiaryContainer: "#CCE5FF",
+    error: "#FFB4AB",
+    onError: "#690005",
+    errorContainer: "#93000A",
+    onErrorContainer: "#FFDAD6",
+    background: "#0F1512",
+    onBackground: "#DEE4E1",
+    surface: "#0F1512",
+    onSurface: "#DEE4E1",
+    surfaceVariant: "#3F4946",
+    onSurfaceVariant: "#BEC9C5",
+    outline: "#899390",
+    outlineVariant: "#3F4946",
+    inverseSurface: "#DEE4E1",
+    inverseOnSurface: "#2B3230",
+    inversePrimary: "#00897B",
+    elevation: {
+      ...MD3DarkTheme.colors.elevation,
+      level0: "transparent",
+      level1: "#1A2421",
+      level2: "#1F2D29",
+      level3: "#253531",
+      level4: "#273833",
+      level5: "#2B3D38",
+    },
+    surfaceDisabled: "rgba(222, 228, 225, 0.12)",
+    onSurfaceDisabled: "rgba(222, 228, 225, 0.38)",
+    backdrop: "rgba(0, 0, 0, 0.4)",
+  },
+  finance: {
+    gain: "#00E676",
+    gainBg: "rgba(0, 230, 118, 0.10)",
+    loss: "#FF5252",
+    lossBg: "rgba(255, 82, 82, 0.10)",
+    info: "#40C4FF",
+    infoBg: "rgba(64, 196, 255, 0.08)",
+    warning: "#FFCA28",
+    userBubble: "#4DB6AC",
+    botBubble: "#1A2421",
+    toolBg: "rgba(64, 196, 255, 0.06)",
+  },
 };
 
+// ── Typed hook ─────────────────────────────────────────────────────
+export function useAppTheme() {
+  return useTheme<AppTheme>();
+}
+
+// ── Spacing (unchanged) ────────────────────────────────────────────
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -90,21 +152,3 @@ export const spacing = {
   xxl: 32,
   xxxl: 48,
 };
-
-export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  full: 100,
-};
-
-// Reusable glass card style snippet
-export const glassCard = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radius.md,
-  },
-});

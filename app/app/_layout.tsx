@@ -1,9 +1,11 @@
 import { useEffect } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, useColorScheme, StyleSheet } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { PaperProvider, ActivityIndicator } from "react-native-paper";
 import { useAppStore } from "../lib/store";
-import { colors } from "../lib/theme";
+import { lightTheme, darkTheme, useAppTheme } from "../lib/theme";
+import type { AppTheme } from "../lib/theme";
 import { useConnectionMonitor } from "../hooks/useConnectionMonitor";
 import ErrorBoundary from "../components/ErrorBoundary";
 import ConnectionBanner from "../components/ConnectionBanner";
@@ -13,6 +15,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutInner() {
   const router = useRouter();
+  const theme = useAppTheme();
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
   const language = useAppStore((s) => s.language);
@@ -36,8 +39,8 @@ function RootLayoutInner() {
 
   if (!hasHydrated) {
     return (
-      <View style={s.loading}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={[styles.loading, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -48,7 +51,7 @@ function RootLayoutInner() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
+          contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
@@ -58,12 +61,11 @@ function RootLayoutInner() {
           options={{
             headerShown: true,
             headerBackTitle: "Back",
-            headerStyle: { backgroundColor: colors.bg },
-            headerTintColor: colors.accent,
+            headerStyle: { backgroundColor: theme.colors.surface },
+            headerTintColor: theme.colors.primary,
             headerTitleStyle: {
-              color: colors.textPrimary,
+              color: theme.colors.onSurface,
               fontWeight: "700",
-              letterSpacing: 1,
             },
           }}
         />
@@ -72,19 +74,29 @@ function RootLayoutInner() {
   );
 }
 
+function ThemedRoot() {
+  const colorScheme = useColorScheme();
+  const theme: AppTheme = colorScheme === "dark" ? darkTheme : lightTheme;
+
+  return (
+    <PaperProvider theme={theme}>
+      <RootLayoutInner />
+    </PaperProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <RootLayoutInner />
+      <ThemedRoot />
     </ErrorBoundary>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bg,
   },
 });

@@ -1,5 +1,5 @@
-import { View, type ViewStyle, StyleSheet } from "react-native";
-import { colors, radius } from "../lib/theme";
+import { type ViewStyle } from "react-native";
+import { Card } from "react-native-paper";
 
 interface Props {
   children: React.ReactNode;
@@ -7,14 +7,9 @@ interface Props {
 }
 
 export default function GlassCard({ children, style }: Props) {
-  return <View style={[s.card, style]}>{children}</View>;
+  return (
+    <Card mode="elevated" style={style}>
+      <Card.Content>{children}</Card.Content>
+    </Card>
+  );
 }
-
-const s = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: radius.md,
-  },
-});

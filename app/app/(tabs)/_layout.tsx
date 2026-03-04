@@ -1,63 +1,61 @@
-import { Text, StyleSheet, View } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { colors, fonts } from "../../lib/theme";
+import { Icon } from "react-native-paper";
+import { useAppTheme } from "../../lib/theme";
 
-function TabIcon({ label, active }: { label: string; active: boolean }) {
-  return (
-    <View style={ti.wrap}>
-      <Text style={[ti.label, active && ti.labelActive]}>{label}</Text>
-      {active && <View style={ti.indicator} />}
-    </View>
-  );
-}
-
-const ti = StyleSheet.create({
-  wrap: { alignItems: "center", paddingTop: 4 },
-  label: { fontSize: 10, fontFamily: fonts.mono, color: colors.tabInactive, letterSpacing: 2, textTransform: "uppercase" },
-  labelActive: { color: colors.accent },
-  indicator: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent, marginTop: 4 },
-});
+const TAB_ICONS: Record<string, string> = {
+  index: "magnify",
+  agent: "robot-outline",
+  settings: "cog-outline",
+};
 
 export default function TabLayout() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
 
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.tabBg,
+          backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: colors.border,
+          borderTopColor: theme.colors.outlineVariant,
           height: 72,
           paddingBottom: 12,
           paddingTop: 8,
         },
-        tabBarLabelStyle: { display: "none" },
-      }}
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarIcon: ({ focused, color }) => {
+          const iconName = TAB_ICONS[route.name] || "help-circle-outline";
+          return (
+            <View style={[styles.iconWrap, focused && { backgroundColor: theme.colors.secondaryContainer }]}>
+              <Icon source={iconName} size={22} color={color} />
+            </View>
+          );
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500" as const,
+          letterSpacing: 0.5,
+        },
+      })}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tabs.search"),
-          tabBarIcon: ({ focused }) => <TabIcon label="SEARCH" active={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="agent"
-        options={{
-          title: t("tabs.agent"),
-          tabBarIcon: ({ focused }) => <TabIcon label="AGENT" active={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t("tabs.settings"),
-          tabBarIcon: ({ focused }) => <TabIcon label="CONFIG" active={focused} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: t("tabs.search") }} />
+      <Tabs.Screen name="agent" options={{ title: t("tabs.agent") }} />
+      <Tabs.Screen name="settings" options={{ title: t("tabs.settings") }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

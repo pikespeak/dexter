@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { colors, fonts, spacing, radius } from "../lib/theme";
+import { View, StyleSheet } from "react-native";
+import { Button, Icon, Text } from "react-native-paper";
+import { spacing } from "../lib/theme";
 
 interface Props {
   children: React.ReactNode;
@@ -9,6 +10,23 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () => void }) {
+  return (
+    <View style={styles.container}>
+      <Icon source="alert-circle-outline" size={48} color="#BA1A1A" />
+      <Text variant="titleMedium" style={{ letterSpacing: 2, marginTop: spacing.xl, marginBottom: spacing.md }}>
+        SOMETHING WENT WRONG
+      </Text>
+      <Text variant="bodyMedium" style={{ textAlign: "center", marginBottom: spacing.xxl }}>
+        {error?.message || "An unexpected error occurred"}
+      </Text>
+      <Button mode="outlined" onPress={onReset}>
+        TRY AGAIN
+      </Button>
+    </View>
+  );
 }
 
 export default class ErrorBoundary extends React.Component<Props, State> {
@@ -28,65 +46,17 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <View style={s.container}>
-          <Text style={s.icon}>!</Text>
-          <Text style={s.title}>SOMETHING WENT WRONG</Text>
-          <Text style={s.message}>
-            {this.state.error?.message || "An unexpected error occurred"}
-          </Text>
-          <Pressable onPress={this.handleReset} style={s.button}>
-            <Text style={s.buttonText}>TRY AGAIN</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallback error={this.state.error} onReset={this.handleReset} />;
     }
-
     return this.props.children;
   }
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xxxl,
-  },
-  icon: {
-    fontSize: 48,
-    color: colors.error,
-    fontWeight: "800",
-    marginBottom: spacing.xl,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: fonts.mono,
-    color: colors.textPrimary,
-    letterSpacing: 3,
-    marginBottom: spacing.md,
-  },
-  message: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: spacing.xxl,
-  },
-  button: {
-    backgroundColor: colors.accentSubtle,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  buttonText: {
-    color: colors.accent,
-    fontSize: 12,
-    fontFamily: fonts.mono,
-    fontWeight: "700",
-    letterSpacing: 2,
   },
 });

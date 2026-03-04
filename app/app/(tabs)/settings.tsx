@@ -1,15 +1,17 @@
 import { useState, useCallback } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
+import { TextInput, Button, Chip, Divider, List, Switch, SegmentedButtons, Text } from "react-native-paper";
 import { useAppStore } from "../../lib/store";
 import { getHealth } from "../../lib/api-client";
 import i18n from "../../i18n";
-import { colors, fonts, spacing, radius } from "../../lib/theme";
+import { useAppTheme, spacing } from "../../lib/theme";
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const theme = useAppTheme();
   const router = useRouter();
   const serverUrl = useAppStore((s) => s.serverUrl);
   const apiKey = useAppStore((s) => s.apiKey);
@@ -35,8 +37,8 @@ export default function SettingsScreen() {
   }, []);
 
   const handleLanguageChange = useCallback(
-    (lang: "en" | "de") => {
-      setLanguage(lang);
+    (lang: string) => {
+      setLanguage(lang as "en" | "de");
       i18n.changeLanguage(lang);
     },
     [setLanguage]
@@ -47,118 +49,104 @@ export default function SettingsScreen() {
     router.replace("/onboarding");
   }, [resetOnboarding, router]);
 
-  const statusColor = connectionStatus === "connected" ? colors.gain : connectionStatus === "failed" ? colors.loss : colors.textMuted;
-  const statusText =
-    connectionStatus === "testing" ? t("settings.testing")
-    : connectionStatus === "connected" ? t("settings.connected")
-    : connectionStatus === "failed" ? t("settings.disconnected")
-    : "";
+  const statusColor = connectionStatus === "connected" ? theme.finance.gain : connectionStatus === "failed" ? theme.finance.loss : theme.colors.onSurfaceVariant;
 
   return (
-    <SafeAreaView style={s.container}>
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={s.header}>
-          <Text style={s.headerTitle}>CONFIG</Text>
-          <Text style={s.headerSub}>SYSTEM SETTINGS</Text>
+        <View style={styles.header}>
+          <Text variant="headlineSmall" style={{ fontWeight: "800", letterSpacing: 4 }}>CONFIG</Text>
+          <Text variant="labelSmall" style={{ letterSpacing: 3, color: theme.colors.onSurfaceVariant }}>
+            SYSTEM SETTINGS
+          </Text>
         </View>
 
         {/* Server URL */}
-        <View style={s.field}>
-          <Text style={s.label}>{t("settings.server_url").toUpperCase()}</Text>
-          <TextInput
-            style={s.input}
-            value={serverUrl}
-            onChangeText={setServerUrl}
-            placeholder={t("settings.server_url_placeholder")}
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
-        </View>
+        <TextInput
+          mode="outlined"
+          label={t("settings.server_url")}
+          value={serverUrl}
+          onChangeText={setServerUrl}
+          placeholder={t("settings.server_url_placeholder")}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          style={styles.field}
+        />
 
         {/* API Key */}
-        <View style={s.field}>
-          <Text style={s.label}>{t("settings.api_key").toUpperCase()}</Text>
-          <View style={s.keyRow}>
-            <TextInput
-              style={s.keyInput}
-              value={apiKey}
-              onChangeText={setApiKey}
-              placeholder={t("settings.api_key_placeholder")}
-              placeholderTextColor={colors.textMuted}
-              secureTextEntry={!showKey}
-              autoCapitalize="none"
-              autoCorrect={false}
+        <TextInput
+          mode="outlined"
+          label={t("settings.api_key")}
+          value={apiKey}
+          onChangeText={setApiKey}
+          placeholder={t("settings.api_key_placeholder")}
+          secureTextEntry={!showKey}
+          autoCapitalize="none"
+          autoCorrect={false}
+          right={
+            <TextInput.Icon
+              icon={showKey ? "eye-off" : "eye"}
+              onPress={() => setShowKey((v) => !v)}
             />
-            <Pressable onPress={() => setShowKey((v) => !v)} style={s.toggleBtn}>
-              <Text style={s.toggleText}>{showKey ? "HIDE" : "SHOW"}</Text>
-            </Pressable>
-          </View>
-        </View>
+          }
+          style={styles.field}
+        />
 
         {/* Test Connection */}
-        <Pressable onPress={testConnection} disabled={connectionStatus === "testing"} style={s.testBtn}>
-          <Text style={s.testBtnText}>{t("settings.test_connection").toUpperCase()}</Text>
-        </Pressable>
-        {statusText !== "" && (
-          <View style={[s.statusBadge, { borderColor: statusColor }]}>
-            <View style={[s.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[s.statusText, { color: statusColor }]}>{statusText.toUpperCase()}</Text>
-          </View>
+        <Button
+          mode="outlined"
+          onPress={testConnection}
+          loading={connectionStatus === "testing"}
+          disabled={connectionStatus === "testing"}
+          style={styles.testBtn}
+        >
+          {t("settings.test_connection").toUpperCase()}
+        </Button>
+        {connectionStatus !== "idle" && connectionStatus !== "testing" && (
+          <Chip
+            icon={connectionStatus === "connected" ? "check-circle" : "close-circle"}
+            style={[styles.statusChip, { borderColor: statusColor }]}
+            textStyle={{ color: statusColor }}
+          >
+            {connectionStatus === "connected" ? t("settings.connected").toUpperCase() : t("settings.disconnected").toUpperCase()}
+          </Chip>
         )}
 
         {/* Demo Mode */}
-        <View style={s.field}>
-          <Text style={s.label}>{t("settings.demo_mode").toUpperCase()}</Text>
-          <Pressable
-            onPress={() => setUseMockData(!useMockData)}
-            style={[s.demoBtn, useMockData && s.demoBtnActive]}
-          >
-            <View style={s.demoRow}>
-              <View>
-                <Text style={[s.demoTitle, useMockData && s.demoTitleActive]}>
-                  {t("settings.demo_mode")}
-                </Text>
-                <Text style={s.demoDesc}>{t("settings.demo_mode_desc")}</Text>
-              </View>
-              {useMockData && (
-                <View style={s.demoBadge}>
-                  <Text style={s.demoBadgeText}>ON</Text>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        </View>
+        <List.Item
+          title={t("settings.demo_mode")}
+          description={t("settings.demo_mode_desc")}
+          right={() => <Switch value={useMockData} onValueChange={setUseMockData} />}
+          style={styles.field}
+        />
 
-        {/* Divider */}
-        <View style={s.divider} />
+        <Divider style={styles.divider} />
 
         {/* Language */}
-        <View style={s.field}>
-          <Text style={s.label}>{t("settings.language").toUpperCase()}</Text>
-          <View style={s.langRow}>
-            <Pressable onPress={() => handleLanguageChange("en")} style={[s.langBtn, language === "en" && s.langBtnActive]}>
-              <Text style={[s.langText, language === "en" && s.langTextActive]}>EN</Text>
-              <Text style={[s.langFull, language === "en" && s.langTextActive]}>{t("settings.english")}</Text>
-            </Pressable>
-            <Pressable onPress={() => handleLanguageChange("de")} style={[s.langBtn, language === "de" && s.langBtnActive]}>
-              <Text style={[s.langText, language === "de" && s.langTextActive]}>DE</Text>
-              <Text style={[s.langFull, language === "de" && s.langTextActive]}>{t("settings.german")}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <Text variant="labelSmall" style={{ letterSpacing: 3, color: theme.colors.onSurfaceVariant, marginBottom: spacing.sm }}>
+          {t("settings.language").toUpperCase()}
+        </Text>
+        <SegmentedButtons
+          value={language}
+          onValueChange={handleLanguageChange}
+          buttons={[
+            { value: "en", label: `EN · ${t("settings.english")}` },
+            { value: "de", label: `DE · ${t("settings.german")}` },
+          ]}
+          style={styles.field}
+        />
 
         {/* Onboarding Reset */}
-        <Pressable onPress={handleResetOnboarding} style={s.linkBtn}>
-          <Text style={s.linkText}>{t("settings.show_onboarding")} →</Text>
-        </Pressable>
+        <Button mode="text" onPress={handleResetOnboarding} style={styles.linkBtn}>
+          {t("settings.show_onboarding")} →
+        </Button>
 
         {/* Version */}
-        <View style={s.versionWrap}>
-          <Text style={s.versionLabel}>VERSION</Text>
-          <Text style={s.versionValue}>1.0.0</Text>
+        <View style={[styles.versionWrap, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Text variant="labelSmall" style={{ letterSpacing: 2, color: theme.colors.onSurfaceVariant }}>VERSION</Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>1.0.0</Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -167,42 +155,14 @@ export default function SettingsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
   scroll: { flex: 1, paddingHorizontal: spacing.lg },
   header: { paddingTop: spacing.md, marginBottom: spacing.xxl },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: colors.textPrimary, letterSpacing: 4 },
-  headerSub: { fontSize: 9, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 3, marginTop: 2 },
   field: { marginBottom: spacing.xl },
-  label: { fontSize: 10, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 3, marginBottom: spacing.sm },
-  input: { backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, fontFamily: fonts.mono },
-  keyRow: { flexDirection: "row", alignItems: "center", backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm },
-  keyInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: colors.textPrimary, fontFamily: fonts.mono },
-  toggleBtn: { paddingHorizontal: 14, paddingVertical: 14 },
-  toggleText: { fontSize: 10, fontFamily: fonts.mono, color: colors.accent, letterSpacing: 2 },
-  testBtn: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.accent, borderRadius: radius.sm, paddingVertical: 16, alignItems: "center", marginBottom: spacing.md },
-  testBtnText: { color: colors.accent, fontWeight: "700", fontSize: 12, letterSpacing: 3, fontFamily: fonts.mono },
-  statusBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: radius.sm, paddingVertical: 8, marginBottom: spacing.xl },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
-  statusText: { fontSize: 10, fontFamily: fonts.mono, letterSpacing: 2 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xl },
-  langRow: { flexDirection: "row", gap: spacing.sm },
-  langBtn: { flex: 1, flexDirection: "row", alignItems: "center", backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingVertical: 14, paddingHorizontal: 16 },
-  langBtnActive: { borderColor: colors.accent, backgroundColor: colors.accentSubtle },
-  langText: { fontSize: 14, fontFamily: fonts.mono, fontWeight: "700", color: colors.textSecondary, marginRight: spacing.sm },
-  langFull: { fontSize: 13, color: colors.textSecondary },
-  langTextActive: { color: colors.accent },
-  linkBtn: { paddingVertical: spacing.lg },
-  linkText: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.body },
-  versionWrap: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.lg },
-  demoBtn: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingVertical: 14, paddingHorizontal: 16 },
-  demoBtnActive: { borderColor: colors.accent, backgroundColor: colors.accentSubtle },
-  demoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  demoTitle: { fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginBottom: 4 },
-  demoTitleActive: { color: colors.accent },
-  demoDesc: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.mono },
-  demoBadge: { backgroundColor: colors.accent, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 },
-  demoBadgeText: { fontSize: 10, fontWeight: "800", color: colors.bg, letterSpacing: 2, fontFamily: fonts.mono },
-  versionLabel: { fontSize: 10, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2 },
-  versionValue: { fontSize: 12, fontFamily: fonts.mono, color: colors.textSecondary },
+  testBtn: { marginBottom: spacing.md },
+  statusChip: { alignSelf: "center", marginBottom: spacing.xl },
+  divider: { marginVertical: spacing.xl },
+  linkBtn: { alignSelf: "flex-start", marginVertical: spacing.lg },
+  versionWrap: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.md, borderTopWidth: 1, marginTop: spacing.lg },
 });
