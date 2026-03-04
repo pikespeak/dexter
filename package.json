@@ -1,7 +1,7 @@
 {
   "name": "dexter-ts",
   "version": "2026.2.10",
-  "description": "Dexter - AI agent for deep financial research.",
+  "description": "Dexter - AI-powered multi-domain prediction platform.",
   "type": "module",
   "main": "src/index.tsx",
   "bin": {
@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "api": "bun run src/api/start.ts",
+    "api:dev": "bun --watch run src/api/start.ts",
     "postinstall": "playwright install chromium"
   },
   "dependencies": {
@@ -34,6 +36,7 @@
     "linkedom": "^0.18.12",
     "playwright": "^1.52.0",
     "react": "^19.2.0",
+    "hono": "^4.7.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
