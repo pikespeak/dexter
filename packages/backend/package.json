@@ -1,0 +1,32 @@
+{
+  "name": "@pikspeak/backend",
+  "version": "0.1.0",
+  "description": "PiksPeak Backend API - Sports betting prediction service",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "bun --watch run src/index.ts",
+    "start": "bun run src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@hono/zod-validator": "^0.5.0",
+    "drizzle-orm": "^0.39.0",
+    "postgres": "^3.4.0",
+    "zod": "^4.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "bcryptjs": "^3.0.0",
+    "ioredis": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/bcryptjs": "^3.0.0",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.9.0"
+  }
+}
