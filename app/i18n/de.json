@@ -78,7 +78,9 @@
     "show_onboarding": "Onboarding erneut anzeigen",
     "app_version": "App Version",
     "english": "Englisch",
-    "german": "Deutsch"
+    "german": "Deutsch",
+    "demo_mode": "Demo-Modus",
+    "demo_mode_desc": "Mock-Daten ohne Server verwenden"
   },
   "connection": {
     "offline": "Keine Verbindung",

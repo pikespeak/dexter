@@ -24,6 +24,27 @@ import type {
   FilingParams,
   PaginationParams,
 } from "./types";
+import {
+  delay,
+  mockSearchResults,
+  mockPriceSnapshot,
+  mockPriceBars,
+  mockCryptoSnapshot,
+  mockCryptoPriceBars,
+  mockCryptoTickers,
+  mockMetricsSnapshot,
+  mockCompany,
+  mockIncomeStatements,
+  mockBalanceSheets,
+  mockCashflowStatements,
+  mockNews,
+  mockFilings,
+  mockFilingItems,
+  mockInsiderTrades,
+  mockEstimates,
+  mockSegments,
+  mockHealth,
+} from "./mock-data";
 
 class ApiError extends Error {
   code: string;
@@ -171,93 +192,123 @@ async function get<T>(
   throw lastError || new Error("Request failed");
 }
 
+// --- Mock helper ---
+
+function isMock(): boolean {
+  return useAppStore.getState().useMockData;
+}
+
+async function mock<T>(data: T, ticker?: string): Promise<ApiSuccessResponse<T>> {
+  await delay();
+  return { data, ...(ticker ? { ticker } : {}) };
+}
+
 // --- Search ---
 
 export function searchTickers(query: string) {
+  if (isMock()) return mock(mockSearchResults(query));
   return get<SearchResult[]>("/search", { q: query });
 }
 
 // --- Prices ---
 
 export function getPriceSnapshot(ticker: string) {
+  if (isMock()) return mock(mockPriceSnapshot(ticker), ticker);
   return get<PriceSnapshot>(`/prices/snapshot/${ticker}`);
 }
 
 export function getPrices(ticker: string, opts: PriceParams) {
+  if (isMock()) return mock(mockPriceBars(ticker), ticker);
   return get<PriceBar[]>(`/prices/${ticker}`, opts as unknown as Record<string, string | number>);
 }
 
 export function getCryptoSnapshot(ticker: string) {
+  if (isMock()) return mock(mockCryptoSnapshot(ticker), ticker);
   return get<CryptoSnapshot>(`/prices/crypto/snapshot/${ticker}`);
 }
 
 export function getCryptoPrices(ticker: string, opts: PriceParams) {
+  if (isMock()) return mock(mockCryptoPriceBars(ticker), ticker);
   return get<PriceBar[]>(`/prices/crypto/${ticker}`, opts as unknown as Record<string, string | number>);
 }
 
 export function getCryptoTickers(params?: PaginationParams) {
+  if (isMock()) return mock(mockCryptoTickers());
   return get<string[]>("/prices/crypto/tickers", params as Record<string, string | number>);
 }
 
 // --- Financials ---
 
 export function getIncome(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock(mockIncomeStatements(ticker), ticker);
   return get<IncomeStatement[]>(`/financials/${ticker}/income`, opts as Record<string, string | number>);
 }
 
 export function getBalance(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock(mockBalanceSheets(ticker), ticker);
   return get<BalanceSheet[]>(`/financials/${ticker}/balance`, opts as Record<string, string | number>);
 }
 
 export function getCashflow(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock(mockCashflowStatements(ticker), ticker);
   return get<CashflowStatement[]>(`/financials/${ticker}/cashflow`, opts as Record<string, string | number>);
 }
 
 // --- Metrics ---
 
 export function getMetricsSnapshot(ticker: string) {
+  if (isMock()) return mock(mockMetricsSnapshot(ticker), ticker);
   return get<MetricsSnapshot>(`/metrics/snapshot/${ticker}`);
 }
 
 export function getMetrics(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock([mockMetricsSnapshot(ticker)] as unknown as Metrics[], ticker);
   return get<Metrics[]>(`/metrics/${ticker}`, opts as Record<string, string | number>);
 }
 
 export function getEstimates(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock(mockEstimates(ticker), ticker);
   return get<Estimate[]>(`/metrics/estimates/${ticker}`, opts as Record<string, string | number>);
 }
 
 // --- Filings ---
 
 export function getFilings(ticker: string, opts?: FilingParams) {
+  if (isMock()) return mock(mockFilings(ticker), ticker);
   return get<Filing[]>(`/filings/${ticker}`, opts as Record<string, string | number>);
 }
 
 export function getFilingItems(ticker: string, opts?: FilingParams) {
+  if (isMock()) return mock(mockFilingItems(ticker), ticker);
   return get<FilingItem[]>(`/filings/items/${ticker}`, opts as Record<string, string | number>);
 }
 
 // --- Company ---
 
 export function getCompany(ticker: string) {
+  if (isMock()) return mock(mockCompany(ticker), ticker);
   return get<Company>(`/company/${ticker}`);
 }
 
 export function getNews(ticker: string, opts?: PaginationParams) {
+  if (isMock()) return mock(mockNews(ticker), ticker);
   return get<NewsArticle[]>(`/company/${ticker}/news`, opts as Record<string, string | number>);
 }
 
 export function getInsiderTrades(ticker: string, opts?: PaginationParams) {
+  if (isMock()) return mock(mockInsiderTrades(ticker), ticker);
   return get<InsiderTrade[]>(`/company/${ticker}/insider-trades`, opts as Record<string, string | number>);
 }
 
 export function getSegments(ticker: string, opts?: FinancialParams) {
+  if (isMock()) return mock(mockSegments(ticker), ticker);
   return get<Segment[]>(`/company/${ticker}/segments`, opts as Record<string, string | number>);
 }
 
 // --- Health ---
 
 export function getHealth(deep?: boolean) {
+  if (isMock()) return mock(mockHealth());
   return get<HealthResponse>("/health", deep ? { deep: "true" } : undefined);
 }
 

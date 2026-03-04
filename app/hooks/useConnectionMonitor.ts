@@ -6,9 +6,19 @@ const PING_INTERVAL = 30000; // 30 seconds
 
 export function useConnectionMonitor() {
   const setIsOnline = useAppStore((s) => s.setIsOnline);
+  const useMockData = useAppStore((s) => s.useMockData);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    if (useMockData) {
+      setIsOnline(true);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
     const checkConnection = async () => {
       try {
         await getHealth();
@@ -29,5 +39,5 @@ export function useConnectionMonitor() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [setIsOnline]);
+  }, [setIsOnline, useMockData]);
 }

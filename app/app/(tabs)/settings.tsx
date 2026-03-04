@@ -17,6 +17,8 @@ export default function SettingsScreen() {
   const setServerUrl = useAppStore((s) => s.setServerUrl);
   const setApiKey = useAppStore((s) => s.setApiKey);
   const setLanguage = useAppStore((s) => s.setLanguage);
+  const useMockData = useAppStore((s) => s.useMockData);
+  const setUseMockData = useAppStore((s) => s.setUseMockData);
   const resetOnboarding = useAppStore((s) => s.resetOnboarding);
 
   const [showKey, setShowKey] = useState(false);
@@ -107,6 +109,29 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {/* Demo Mode */}
+        <View style={s.field}>
+          <Text style={s.label}>{t("settings.demo_mode").toUpperCase()}</Text>
+          <Pressable
+            onPress={() => setUseMockData(!useMockData)}
+            style={[s.demoBtn, useMockData && s.demoBtnActive]}
+          >
+            <View style={s.demoRow}>
+              <View>
+                <Text style={[s.demoTitle, useMockData && s.demoTitleActive]}>
+                  {t("settings.demo_mode")}
+                </Text>
+                <Text style={s.demoDesc}>{t("settings.demo_mode_desc")}</Text>
+              </View>
+              {useMockData && (
+                <View style={s.demoBadge}>
+                  <Text style={s.demoBadgeText}>ON</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+        </View>
+
         {/* Divider */}
         <View style={s.divider} />
 
@@ -170,6 +195,14 @@ const s = StyleSheet.create({
   linkBtn: { paddingVertical: spacing.lg },
   linkText: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.body },
   versionWrap: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.lg },
+  demoBtn: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.sm, paddingVertical: 14, paddingHorizontal: 16 },
+  demoBtnActive: { borderColor: colors.accent, backgroundColor: colors.accentSubtle },
+  demoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  demoTitle: { fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginBottom: 4 },
+  demoTitleActive: { color: colors.accent },
+  demoDesc: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.mono },
+  demoBadge: { backgroundColor: colors.accent, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 },
+  demoBadgeText: { fontSize: 10, fontWeight: "800", color: colors.bg, letterSpacing: 2, fontFamily: fonts.mono },
   versionLabel: { fontSize: 10, fontFamily: fonts.mono, color: colors.textMuted, letterSpacing: 2 },
   versionValue: { fontSize: 12, fontFamily: fonts.mono, color: colors.textSecondary },
 });

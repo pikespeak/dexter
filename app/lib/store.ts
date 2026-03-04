@@ -8,6 +8,7 @@ interface AppState {
   serverUrl: string;
   apiKey: string;
   language: "en" | "de";
+  useMockData: boolean;
 
   // Onboarding
   hasCompletedOnboarding: boolean;
@@ -29,6 +30,7 @@ interface AppState {
   setServerUrl: (url: string) => void;
   setApiKey: (key: string) => void;
   setLanguage: (lang: "en" | "de") => void;
+  setUseMockData: (v: boolean) => void;
   completeOnboarding: () => void;
   resetOnboarding: () => void;
   addToWatchlist: (ticker: string) => void;
@@ -52,6 +54,7 @@ export const useAppStore = create<AppState>()(
       serverUrl: "http://localhost:3000/api/v1",
       apiKey: "",
       language: "en",
+      useMockData: true,
       hasCompletedOnboarding: false,
       watchlist: [],
       recentSearches: [],
@@ -63,6 +66,7 @@ export const useAppStore = create<AppState>()(
       setServerUrl: (url) => set({ serverUrl: url }),
       setApiKey: (key) => set({ apiKey: key }),
       setLanguage: (lang) => set({ language: lang }),
+      setUseMockData: (v) => set({ useMockData: v }),
       completeOnboarding: () => set({ hasCompletedOnboarding: true }),
       resetOnboarding: () => set({ hasCompletedOnboarding: false }),
 
@@ -106,6 +110,7 @@ export const useAppStore = create<AppState>()(
         serverUrl: state.serverUrl,
         apiKey: state.apiKey,
         language: state.language,
+        useMockData: state.useMockData,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         watchlist: state.watchlist,
         recentSearches: state.recentSearches,
