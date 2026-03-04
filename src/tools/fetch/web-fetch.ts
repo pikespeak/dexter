@@ -34,11 +34,59 @@ import {
   writeCache,
 } from './cache.js';
 
+/**
+ * Rich description for the web_fetch tool.
+ * Used in the system prompt to guide the LLM on when and how to use this tool.
+ */
+export const WEB_FETCH_DESCRIPTION = `
+Fetch and extract readable content from a URL (HTML -> markdown/text). Returns the page content directly in a single call.
+
+## This is the DEFAULT tool for reading web pages
+
+Use web_fetch as your FIRST choice whenever you need to read the content of a web page. It is faster and simpler than the browser tool.
+
+## When to Use
+
+- Reading earnings reports, press releases, or investor relations pages
+- Reading articles from news sites (CNBC, Bloomberg, Reuters, etc.)
+- Accessing any URL discovered via web_search
+- Reading documentation, blog posts, or any static web content
+- When you need the full text content of a known URL
+
+## When NOT to Use
+
+- Interactive pages that require JavaScript rendering, clicking, or form filling (use browser instead)
+- Structured financial data like prices, metrics, or estimates (use financial_search instead)
+- SEC filings content (use read_filings instead)
+- When you need to navigate through multiple pages by clicking links (use browser instead)
+
+## Schema
+
+- **url** (required): The HTTP or HTTPS URL to fetch
+- **extractMode** (optional): "markdown" (default) or "text" - controls output format
+- **maxChars** (optional): Maximum characters to return (default 20,000)
+
+## Returns
+
+Returns the page content directly as markdown or text. No multi-step workflow needed - one call gets you the full content.
+
+Response includes: url, finalUrl, title, text, extractMode, extractor, truncated, tookMs
+
+## Usage Notes
+
+- Returns content in a single call - no need for navigate/snapshot/read steps
+- Results are cached for 15 minutes - repeated fetches of the same URL are instant
+- Handles redirects automatically (up to 3 hops)
+- Extracts readable content using Mozilla Readability (same as Firefox Reader View)
+- Falls back to raw HTML-to-markdown conversion if Readability extraction fails
+- Works with HTML pages, JSON responses, and plain text
+`.trim();
+
 // ============================================================================
 // Constants (identical to OpenClaw)
 // ============================================================================
 
-const DEFAULT_FETCH_MAX_CHARS = 50_000;
+const DEFAULT_FETCH_MAX_CHARS = 20_000;
 const DEFAULT_FETCH_MAX_REDIRECTS = 3;
 const DEFAULT_ERROR_MAX_CHARS = 4_000;
 const DEFAULT_FETCH_USER_AGENT =
@@ -190,10 +238,10 @@ async function fetchWithRedirects(params: {
     try {
       parsedUrl = new URL(currentUrl);
     } catch {
-      throw new Error("Invalid URL: must be http or https");
+      throw new Error("[Web Fetch] Invalid URL: must be http or https");
     }
     if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-      throw new Error("Invalid URL: must be http or https");
+      throw new Error("[Web Fetch] Invalid URL: must be http or https");
     }
 
     const response = await fetch(parsedUrl.toString(), {
@@ -205,15 +253,15 @@ async function fetchWithRedirects(params: {
     if (isRedirectStatus(response.status)) {
       const location = response.headers.get("location");
       if (!location) {
-        throw new Error(`Redirect missing location header (${response.status})`);
+        throw new Error(`[Web Fetch] Redirect missing location header (${response.status})`);
       }
       redirectCount += 1;
       if (redirectCount > params.maxRedirects) {
-        throw new Error(`Too many redirects (limit: ${params.maxRedirects})`);
+        throw new Error(`[Web Fetch] Too many redirects (limit: ${params.maxRedirects})`);
       }
       const nextUrl = new URL(location, parsedUrl).toString();
       if (visited.has(nextUrl)) {
-        throw new Error("Redirect loop detected");
+        throw new Error("[Web Fetch] Redirect loop detected");
       }
       visited.add(nextUrl);
       currentUrl = nextUrl;
@@ -249,10 +297,10 @@ async function runWebFetch(params: {
   try {
     parsedUrl = new URL(params.url);
   } catch {
-    throw new Error("Invalid URL: must be http or https");
+    throw new Error("[Web Fetch] Invalid URL: must be http or https");
   }
   if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-    throw new Error("Invalid URL: must be http or https");
+    throw new Error("[Web Fetch] Invalid URL: must be http or https");
   }
 
   const start = Date.now();
@@ -275,7 +323,7 @@ async function runWebFetch(params: {
       maxChars: DEFAULT_ERROR_MAX_CHARS,
     });
     const wrappedDetail = wrapWebFetchContent(detail || res.statusText, DEFAULT_ERROR_MAX_CHARS);
-    throw new Error(`Web fetch failed (${res.status}): ${wrappedDetail.text}`);
+    throw new Error(`[Web Fetch] failed (${res.status}): ${wrappedDetail.text}`);
   }
 
   const contentType = res.headers.get("content-type") ?? "application/octet-stream";
