@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { View, useColorScheme, StyleSheet } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { PaperProvider, ActivityIndicator } from "react-native-paper";
 import { useAppStore } from "../lib/store";
@@ -80,6 +81,7 @@ function ThemedRoot() {
 
   return (
     <PaperProvider theme={theme}>
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
       <RootLayoutInner />
     </PaperProvider>
   );

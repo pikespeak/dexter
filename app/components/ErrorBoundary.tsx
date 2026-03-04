@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Button, Icon, Text } from "react-native-paper";
-import { spacing } from "../lib/theme";
+import { spacing, useAppTheme } from "../lib/theme";
 
 interface Props {
   children: React.ReactNode;
@@ -13,9 +13,10 @@ interface State {
 }
 
 function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () => void }) {
+  const theme = useAppTheme();
   return (
     <View style={styles.container}>
-      <Icon source="alert-circle-outline" size={48} color="#BA1A1A" />
+      <Icon source="alert-circle-outline" size={48} color={theme.colors.error} />
       <Text variant="titleMedium" style={{ letterSpacing: 2, marginTop: spacing.xl, marginBottom: spacing.md }}>
         SOMETHING WENT WRONG
       </Text>
