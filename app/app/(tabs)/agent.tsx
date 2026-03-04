@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -45,72 +46,32 @@ export default function AgentScreen() {
     if (!query || isStreaming) return;
 
     setInput("");
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      type: "user",
-      content: query,
-    };
-    addMessage(userMsg);
+    addMessage({ id: Date.now().toString(), type: "user", content: query });
 
     setIsStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
-      for await (const event of queryAgent(query, {
-        signal: controller.signal,
-      })) {
+      for await (const event of queryAgent(query, { signal: controller.signal })) {
         if (event.type === "ping") continue;
-
         if (event.type === "thinking") {
-          addMessage({
-            id: `thinking-${Date.now()}`,
-            type: "thinking",
-            content: t("agent.thinking"),
-          });
+          addMessage({ id: `thinking-${Date.now()}`, type: "thinking", content: t("agent.thinking") });
         } else if (event.type === "tool_start") {
-          addMessage({
-            id: `tool-${Date.now()}`,
-            type: "tool",
-            content: "",
-            toolName: event.toolName || "Tool",
-          });
+          addMessage({ id: `tool-${Date.now()}`, type: "tool", content: "", toolName: event.toolName || "Tool" });
         } else if (event.type === "tool_end") {
-          const result =
-            typeof event.data?.result === "string"
-              ? event.data.result
-              : JSON.stringify(event.data?.result ?? "");
-          addMessage({
-            id: `tool-end-${Date.now()}`,
-            type: "tool",
-            content: result.slice(0, 500),
-            toolName: event.toolName || "Result",
-          });
+          const result = typeof event.data?.result === "string" ? event.data.result : JSON.stringify(event.data?.result ?? "");
+          addMessage({ id: `tool-end-${Date.now()}`, type: "tool", content: String(result).slice(0, 500), toolName: event.toolName || "Result" });
         } else if (event.type === "done") {
-          const answer =
-            event.answer ||
-            (typeof event.data?.answer === "string" ? event.data.answer : "") ||
-            JSON.stringify(event.data ?? "");
-          addMessage({
-            id: `answer-${Date.now()}`,
-            type: "answer",
-            content: answer,
-          });
+          const answer = event.answer || (typeof event.data?.answer === "string" ? event.data.answer : "") || JSON.stringify(event.data ?? "");
+          addMessage({ id: `answer-${Date.now()}`, type: "answer", content: answer });
         } else if (event.type === "error") {
-          addMessage({
-            id: `error-${Date.now()}`,
-            type: "error",
-            content: event.error || t("agent.error"),
-          });
+          addMessage({ id: `error-${Date.now()}`, type: "error", content: event.error || t("agent.error") });
         }
       }
     } catch (err: unknown) {
       if ((err as Error).name !== "AbortError") {
-        addMessage({
-          id: `error-${Date.now()}`,
-          type: "error",
-          content: t("agent.error"),
-        });
+        addMessage({ id: `error-${Date.now()}`, type: "error", content: t("agent.error") });
       }
     } finally {
       setIsStreaming(false);
@@ -119,52 +80,38 @@ export default function AgentScreen() {
   }, [input, isStreaming, addMessage, t]);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <View className="pt-2 pb-1 px-4 border-b border-gray-100 dark:border-gray-800">
-        <Text className="text-xl font-bold text-gray-900 dark:text-white">
-          {t("tabs.agent")}
-        </Text>
+    <SafeAreaView style={s.container}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>{t("tabs.agent")}</Text>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={s.flex}
         keyboardVerticalOffset={90}
       >
-        <ScrollView
-          ref={scrollRef}
-          className="flex-1 px-4 pt-4"
-          onContentSizeChange={scrollToEnd}
-        >
+        <ScrollView ref={scrollRef} style={s.messages} contentContainerStyle={s.messagesContent} onContentSizeChange={scrollToEnd}>
           {messages.length === 0 && (
-            <View className="items-center mt-20">
-              <Text className="text-5xl mb-4">🤖</Text>
-              <Text className="text-gray-400 text-center text-base px-8">
-                {t("agent.welcome")}
-              </Text>
+            <View style={s.welcome}>
+              <Text style={{ fontSize: 48, marginBottom: 16 }}>🤖</Text>
+              <Text style={s.welcomeText}>{t("agent.welcome")}</Text>
             </View>
           )}
           {messages.map((msg) => (
-            <AgentMessage
-              key={msg.id}
-              type={msg.type}
-              content={msg.content}
-              toolName={msg.toolName}
-            />
+            <AgentMessage key={msg.id} type={msg.type} content={msg.content} toolName={msg.toolName} />
           ))}
           {isStreaming && (
-            <View className="self-start mb-2">
-              <View className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-3">
-                <Text className="text-gray-400 text-lg">● ● ●</Text>
+            <View style={s.typingWrap}>
+              <View style={s.typingBubble}>
+                <Text style={{ color: "#9ca3af", fontSize: 18 }}>● ● ●</Text>
               </View>
             </View>
           )}
         </ScrollView>
 
-        {/* Input */}
-        <View className="flex-row items-end px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+        <View style={s.inputBar}>
           <TextInput
-            className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-3 text-base text-gray-900 dark:text-white mr-2 max-h-24"
+            style={s.input}
             placeholder={t("agent.placeholder")}
             placeholderTextColor="#9ca3af"
             value={input}
@@ -176,14 +123,30 @@ export default function AgentScreen() {
           <Pressable
             onPress={handleSend}
             disabled={isStreaming || !input.trim()}
-            className={`rounded-full w-10 h-10 items-center justify-center ${
-              isStreaming || !input.trim() ? "bg-gray-300" : "bg-blue-500"
-            }`}
+            style={[s.sendBtn, (isStreaming || !input.trim()) ? s.sendDisabled : s.sendActive]}
           >
-            <Text className="text-white text-lg">↑</Text>
+            <Text style={{ color: "#fff", fontSize: 18 }}>↑</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  flex: { flex: 1 },
+  header: { paddingTop: 8, paddingBottom: 4, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#111827" },
+  messages: { flex: 1, paddingHorizontal: 16 },
+  messagesContent: { paddingTop: 16, paddingBottom: 8 },
+  welcome: { alignItems: "center", marginTop: 80 },
+  welcomeText: { color: "#9ca3af", textAlign: "center", fontSize: 16, paddingHorizontal: 32 },
+  typingWrap: { alignSelf: "flex-start", marginBottom: 8 },
+  typingBubble: { backgroundColor: "#f3f4f6", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 },
+  inputBar: { flexDirection: "row", alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6" },
+  input: { flex: 1, backgroundColor: "#f3f4f6", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: "#111827", marginRight: 8, maxHeight: 96 },
+  sendBtn: { borderRadius: 20, width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  sendActive: { backgroundColor: "#2563eb" },
+  sendDisabled: { backgroundColor: "#d1d5db" },
+});

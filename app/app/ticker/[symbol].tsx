@@ -1,31 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../../lib/store";
 import {
-  getPriceSnapshot,
-  getPrices,
-  getMetricsSnapshot,
-  getIncome,
-  getBalance,
-  getCashflow,
-  getNews,
-  getFilings,
-  getInsiderTrades,
-  getCompany,
+  getPriceSnapshot, getPrices, getMetricsSnapshot,
+  getIncome, getBalance, getCashflow,
+  getNews, getFilings, getInsiderTrades, getCompany,
 } from "../../lib/api-client";
 import type {
-  PriceSnapshot,
-  PriceBar,
-  MetricsSnapshot,
-  IncomeStatement,
-  BalanceSheet,
-  CashflowStatement,
-  NewsArticle,
-  Filing,
-  InsiderTrade,
-  Company,
+  PriceSnapshot, PriceBar, MetricsSnapshot,
+  IncomeStatement, BalanceSheet, CashflowStatement,
+  NewsArticle, Filing, InsiderTrade, Company,
 } from "../../lib/types";
 import PriceChart from "../../components/PriceChart";
 import MetricCard from "../../components/MetricCard";
@@ -63,15 +49,11 @@ export default function TickerDetailScreen() {
   const loadData = useCallback(async () => {
     if (!ticker) return;
     setLoading(true);
-
     const today = new Date().toISOString().slice(0, 10);
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
 
     const results = await Promise.allSettled([
-      getPriceSnapshot(ticker),
-      getCompany(ticker),
+      getPriceSnapshot(ticker), getCompany(ticker),
       getPrices(ticker, { start_date: thirtyDaysAgo, end_date: today }),
       getMetricsSnapshot(ticker),
       getIncome(ticker, { period: "annual", limit: 5 }),
@@ -91,15 +73,11 @@ export default function TickerDetailScreen() {
     if (results[6].status === "fulfilled") setCashflow(results[6].value.data);
     if (results[7].status === "fulfilled") setNews(results[7].value.data);
     if (results[8].status === "fulfilled") setFilings(results[8].value.data);
-    if (results[9].status === "fulfilled")
-      setInsiderTrades(results[9].value.data);
-
+    if (results[9].status === "fulfilled") setInsiderTrades(results[9].value.data);
     setLoading(false);
   }, [ticker]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -108,35 +86,23 @@ export default function TickerDetailScreen() {
   }, [loadData]);
 
   const toggleWatchlist = useCallback(() => {
-    if (inWatchlist) {
-      removeFromWatchlist(ticker);
-    } else {
-      addToWatchlist(ticker);
-    }
+    inWatchlist ? removeFromWatchlist(ticker) : addToWatchlist(ticker);
   }, [inWatchlist, ticker, addToWatchlist, removeFromWatchlist]);
 
   const price = snapshot?.price ?? snapshot?.close;
   const changePercent = snapshot?.change_percent;
 
   const incomeColumns = [
-    { key: "report_period", label: "Period" },
-    { key: "revenue", label: "Revenue" },
-    { key: "net_income", label: "Net Income" },
-    { key: "eps_diluted", label: "EPS" },
+    { key: "report_period", label: "Period" }, { key: "revenue", label: "Revenue" },
+    { key: "net_income", label: "Net Income" }, { key: "eps_diluted", label: "EPS" },
   ];
-
   const balanceColumns = [
-    { key: "report_period", label: "Period" },
-    { key: "total_assets", label: "Assets" },
-    { key: "total_liabilities", label: "Liabilities" },
-    { key: "total_equity", label: "Equity" },
+    { key: "report_period", label: "Period" }, { key: "total_assets", label: "Assets" },
+    { key: "total_liabilities", label: "Liabilities" }, { key: "total_equity", label: "Equity" },
   ];
-
   const cashflowColumns = [
-    { key: "report_period", label: "Period" },
-    { key: "operating_cash_flow", label: "Operating" },
-    { key: "free_cash_flow", label: "Free CF" },
-    { key: "net_cash_flow", label: "Net CF" },
+    { key: "report_period", label: "Period" }, { key: "operating_cash_flow", label: "Operating" },
+    { key: "free_cash_flow", label: "Free CF" }, { key: "net_cash_flow", label: "Net CF" },
   ];
 
   return (
@@ -145,21 +111,15 @@ export default function TickerDetailScreen() {
         options={{
           title: ticker,
           headerRight: () => (
-            <Pressable onPress={toggleWatchlist} className="pr-2">
-              <Text className="text-2xl">{inWatchlist ? "★" : "☆"}</Text>
+            <Pressable onPress={toggleWatchlist} style={{ paddingRight: 8 }}>
+              <Text style={{ fontSize: 24 }}>{inWatchlist ? "★" : "☆"}</Text>
             </Pressable>
           ),
         }}
       />
-
-      <ScrollView
-        className="flex-1 bg-gray-50 dark:bg-gray-950"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+      <ScrollView style={st.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {loading ? (
-          <View className="p-4 gap-3">
+          <View style={{ padding: 16, gap: 12 }}>
             <SkeletonLoader height={40} />
             <SkeletonLoader height={20} width={200} />
             <SkeletonLoader height={150} />
@@ -169,165 +129,92 @@ export default function TickerDetailScreen() {
         ) : (
           <>
             {/* Header */}
-            <View className="px-4 pt-4 pb-2">
-              <Text className="text-sm text-gray-500 dark:text-gray-400">
-                {company?.name || ticker}
-              </Text>
-              {price !== undefined && price !== null && (
-                <View className="flex-row items-baseline mt-1">
-                  <Text className="text-3xl font-bold text-gray-900 dark:text-white">
-                    ${price.toFixed(2)}
-                  </Text>
-                  {changePercent !== undefined && changePercent !== null && (
-                    <Text
-                      className={`text-lg font-semibold ml-2 ${
-                        changePercent >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {changePercent >= 0 ? "+" : ""}
-                      {changePercent.toFixed(2)}%
+            <View style={st.tickerHeader}>
+              <Text style={st.companyName}>{company?.name || ticker}</Text>
+              {price != null && (
+                <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>
+                  <Text style={st.price}>${price.toFixed(2)}</Text>
+                  {changePercent != null && (
+                    <Text style={[st.change, { color: changePercent >= 0 ? "#22c55e" : "#ef4444" }]}>
+                      {changePercent >= 0 ? "+" : ""}{changePercent.toFixed(2)}%
                     </Text>
                   )}
                 </View>
               )}
             </View>
 
-            {/* Price Chart */}
-            <View className="mt-4">
-              <Text className="text-lg font-semibold text-gray-900 dark:text-white px-4 mb-2">
-                {t("ticker.price_chart")}
-              </Text>
+            {/* Chart */}
+            <View style={{ marginTop: 16 }}>
+              <Text style={st.sectionTitle}>{t("ticker.price_chart")}</Text>
               <PriceChart data={prices} />
             </View>
 
-            {/* Key Metrics */}
+            {/* Metrics */}
             {metrics && (
-              <View className="mt-6 px-3">
-                <Text className="text-lg font-semibold text-gray-900 dark:text-white px-1 mb-2">
-                  {t("ticker.key_metrics")}
-                </Text>
-                <View className="flex-row flex-wrap">
-                  <MetricCard
-                    label={t("ticker.market_cap")}
-                    value={metrics.market_cap}
-                  />
-                  <MetricCard
-                    label={t("ticker.pe_ratio")}
-                    value={metrics.pe_ratio}
-                  />
+              <View style={{ marginTop: 24, paddingHorizontal: 12 }}>
+                <Text style={[st.sectionTitle, { paddingHorizontal: 4 }]}>{t("ticker.key_metrics")}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  <MetricCard label={t("ticker.market_cap")} value={metrics.market_cap} />
+                  <MetricCard label={t("ticker.pe_ratio")} value={metrics.pe_ratio} />
                   <MetricCard label={t("ticker.eps")} value={metrics.eps} />
-                  <MetricCard
-                    label={t("ticker.dividend_yield")}
-                    value={metrics.dividend_yield}
-                  />
+                  <MetricCard label={t("ticker.dividend_yield")} value={metrics.dividend_yield} />
                 </View>
               </View>
             )}
 
             {/* Financials */}
-            <View className="mt-6">
-              <Text className="text-lg font-semibold text-gray-900 dark:text-white px-4 mb-2">
-                {t("ticker.financials")}
-              </Text>
-              <View className="flex-row px-4 mb-3">
+            <View style={{ marginTop: 24 }}>
+              <Text style={st.sectionTitle}>{t("ticker.financials")}</Text>
+              <View style={{ flexDirection: "row", paddingHorizontal: 16, marginBottom: 12 }}>
                 {(["income", "balance", "cashflow"] as const).map((tab) => (
                   <Pressable
                     key={tab}
                     onPress={() => setFinancialTab(tab)}
-                    className={`px-4 py-2 mr-2 rounded-full ${
-                      financialTab === tab
-                        ? "bg-blue-500"
-                        : "bg-gray-200 dark:bg-gray-800"
-                    }`}
+                    style={[st.tabBtn, financialTab === tab && st.tabBtnActive]}
                   >
-                    <Text
-                      className={`text-sm font-medium ${
-                        financialTab === tab
-                          ? "text-white"
-                          : "text-gray-700 dark:text-gray-300"
-                      }`}
-                    >
+                    <Text style={[st.tabText, financialTab === tab && st.tabTextActive]}>
                       {t(`ticker.${tab}`)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
               <FinancialTable
-                data={
-                  financialTab === "income"
-                    ? income
-                    : financialTab === "balance"
-                      ? balance
-                      : cashflow
-                }
-                columns={
-                  financialTab === "income"
-                    ? incomeColumns
-                    : financialTab === "balance"
-                      ? balanceColumns
-                      : cashflowColumns
-                }
+                data={financialTab === "income" ? income : financialTab === "balance" ? balance : cashflow}
+                columns={financialTab === "income" ? incomeColumns : financialTab === "balance" ? balanceColumns : cashflowColumns}
               />
             </View>
 
             {/* News */}
-            <View className="mt-6">
-              <Text className="text-lg font-semibold text-gray-900 dark:text-white px-4 mb-2">
-                {t("ticker.news")}
-              </Text>
+            <View style={{ marginTop: 24 }}>
+              <Text style={st.sectionTitle}>{t("ticker.news")}</Text>
               <NewsFeed articles={news} />
             </View>
 
-            {/* Filings (collapsible) */}
-            <View className="mt-6 px-4">
-              <Pressable
-                onPress={() => setShowFilings((s) => !s)}
-                className="flex-row justify-between items-center"
-              >
-                <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {t("ticker.filings")}
-                </Text>
-                <Text className="text-gray-400">
-                  {showFilings ? "▲" : "▼"}
-                </Text>
+            {/* Filings */}
+            <View style={{ marginTop: 24, paddingHorizontal: 16 }}>
+              <Pressable onPress={() => setShowFilings((v) => !v)} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={st.sectionTitleInline}>{t("ticker.filings")}</Text>
+                <Text style={{ color: "#9ca3af" }}>{showFilings ? "▲" : "▼"}</Text>
               </Pressable>
-              {showFilings &&
-                filings.map((filing, i) => (
-                  <View
-                    key={i}
-                    className="py-2 border-b border-gray-100 dark:border-gray-800"
-                  >
-                    <Text className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {filing.filing_type}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {filing.filing_date}
-                    </Text>
-                  </View>
-                ))}
+              {showFilings && filings.map((f, i) => (
+                <View key={i} style={st.listItem}>
+                  <Text style={st.listItemTitle}>{f.filing_type}</Text>
+                  <Text style={st.listItemSub}>{f.filing_date}</Text>
+                </View>
+              ))}
             </View>
 
             {/* Insider Trades */}
             {insiderTrades.length > 0 && (
-              <View className="mt-6 px-4 mb-8">
-                <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  {t("ticker.insider_trades")}
-                </Text>
+              <View style={{ marginTop: 24, paddingHorizontal: 16, marginBottom: 32 }}>
+                <Text style={st.sectionTitleInline}>{t("ticker.insider_trades")}</Text>
                 {insiderTrades.map((trade, i) => (
-                  <View
-                    key={i}
-                    className="py-2 border-b border-gray-100 dark:border-gray-800"
-                  >
-                    <Text className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {trade.owner_name}
+                  <View key={i} style={st.listItem}>
+                    <Text style={st.listItemTitle}>{trade.owner_name}</Text>
+                    <Text style={st.listItemSub}>
+                      {trade.transaction_type} · {trade.shares?.toLocaleString()} shares · ${trade.price_per_share?.toFixed(2)}
                     </Text>
-                    <Text className="text-xs text-gray-500">
-                      {trade.transaction_type} · {trade.shares?.toLocaleString()}{" "}
-                      shares · ${trade.price_per_share?.toFixed(2)}
-                    </Text>
-                    <Text className="text-xs text-gray-400">
-                      {trade.trade_date}
-                    </Text>
+                    <Text style={{ fontSize: 12, color: "#9ca3af" }}>{trade.trade_date}</Text>
                   </View>
                 ))}
               </View>
@@ -338,3 +225,20 @@ export default function TickerDetailScreen() {
     </>
   );
 }
+
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  tickerHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  companyName: { fontSize: 14, color: "#6b7280" },
+  price: { fontSize: 32, fontWeight: "bold", color: "#111827" },
+  change: { fontSize: 18, fontWeight: "600", marginLeft: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", color: "#111827", paddingHorizontal: 16, marginBottom: 8 },
+  sectionTitleInline: { fontSize: 18, fontWeight: "600", color: "#111827" },
+  tabBtn: { paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, borderRadius: 20, backgroundColor: "#e5e7eb" },
+  tabBtnActive: { backgroundColor: "#2563eb" },
+  tabText: { fontSize: 14, fontWeight: "500", color: "#374151" },
+  tabTextActive: { color: "#fff" },
+  listItem: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  listItemTitle: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  listItemSub: { fontSize: 12, color: "#6b7280" },
+});

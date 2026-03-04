@@ -1,4 +1,4 @@
-import { View, TextInput, Pressable, Text } from "react-native";
+import { View, TextInput, Pressable, Text, StyleSheet } from "react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -19,10 +19,10 @@ export default function SearchBar({ onSearch }: Props) {
   };
 
   return (
-    <View className="flex-row items-center bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-2 mx-4 mt-2">
-      <Text className="text-gray-400 mr-2">🔍</Text>
+    <View style={s.container}>
+      <Text style={s.icon}>🔍</Text>
       <TextInput
-        className="flex-1 text-base text-gray-900 dark:text-white"
+        style={s.input}
         placeholder={t("search.placeholder")}
         placeholderTextColor="#9ca3af"
         value={query}
@@ -34,9 +34,16 @@ export default function SearchBar({ onSearch }: Props) {
       />
       {query.length > 0 && (
         <Pressable onPress={handleSubmit}>
-          <Text className="text-blue-500 font-semibold">Go</Text>
+          <Text style={s.goText}>Go</Text>
         </Pressable>
       )}
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flexDirection: "row", alignItems: "center", backgroundColor: "#f3f4f6", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8, marginHorizontal: 16, marginTop: 8 },
+  icon: { color: "#9ca3af", marginRight: 8 },
+  input: { flex: 1, fontSize: 16, color: "#111827" },
+  goText: { color: "#2563eb", fontWeight: "600" },
+});

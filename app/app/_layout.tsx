@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-import { Stack } from "expo-router";
-import { useRouter } from "expo-router";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useAppStore } from "../lib/store";
 import "../i18n";
-import "../global.css";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const router = useRouter();
@@ -16,11 +15,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (hasHydrated) {
-      // Update i18n language from persisted store
       import("i18next").then((i18n) => {
         i18n.default.changeLanguage(language);
       });
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [hasHydrated, language]);
 
@@ -30,7 +28,13 @@ export default function RootLayout() {
     }
   }, [hasHydrated, hasCompletedOnboarding, router]);
 
-  if (!hasHydrated) return null;
+  if (!hasHydrated) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -43,3 +47,12 @@ export default function RootLayout() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1e3a5f",
+  },
+});

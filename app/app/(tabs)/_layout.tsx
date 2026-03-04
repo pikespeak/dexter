@@ -1,3 +1,4 @@
+import { Text } from "react-native";
 import { Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -20,35 +21,23 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t("tabs.search"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon="🔍" color={color} />
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🔍</Text>,
         }}
       />
       <Tabs.Screen
         name="agent"
         options={{
           title: t("tabs.agent"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon="🤖" color={color} />
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>🤖</Text>,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: t("tabs.settings"),
-          tabBarIcon: ({ color }) => (
-            <TabIcon icon="⚙️" color={color} />
-          ),
+          tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text>,
         }}
       />
     </Tabs>
   );
-}
-
-import { Text } from "react-native";
-
-function TabIcon({ icon }: { icon: string; color: string }) {
-  return <Text style={{ fontSize: 20 }}>{icon}</Text>;
 }

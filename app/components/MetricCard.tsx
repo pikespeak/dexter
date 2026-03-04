@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 
 interface Props {
   label: string;
@@ -7,26 +7,23 @@ interface Props {
 
 export default function MetricCard({ label, value }: Props) {
   const formatted =
-    value === null || value === undefined
-      ? "—"
-      : typeof value === "number"
-        ? value >= 1e9
-          ? `$${(value / 1e9).toFixed(1)}B`
-          : value >= 1e6
-            ? `$${(value / 1e6).toFixed(1)}M`
-            : typeof value === "number" && !label.toLowerCase().includes("cap")
-              ? value.toFixed(2)
-              : `$${value.toLocaleString()}`
-        : String(value);
+    value == null ? "—"
+    : typeof value === "number"
+      ? Math.abs(value) >= 1e9 ? `$${(value / 1e9).toFixed(1)}B`
+        : Math.abs(value) >= 1e6 ? `$${(value / 1e6).toFixed(1)}M`
+        : value.toFixed(2)
+    : String(value);
 
   return (
-    <View className="bg-white dark:bg-gray-800 rounded-xl p-3 flex-1 min-w-[45%] m-1 shadow-sm">
-      <Text className="text-xs text-gray-500 dark:text-gray-400 uppercase">
-        {label}
-      </Text>
-      <Text className="text-lg font-bold text-gray-900 dark:text-white mt-1">
-        {formatted}
-      </Text>
+    <View style={s.card}>
+      <Text style={s.label}>{label}</Text>
+      <Text style={s.value}>{formatted}</Text>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  card: { backgroundColor: "#fff", borderRadius: 12, padding: 12, flex: 1, minWidth: "45%" as unknown as number, margin: 4, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  label: { fontSize: 11, color: "#6b7280", textTransform: "uppercase" },
+  value: { fontSize: 18, fontWeight: "bold", color: "#111827", marginTop: 4 },
+});

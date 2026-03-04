@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import type { PriceBar } from "../lib/types";
 
 interface Props {
@@ -9,8 +9,8 @@ interface Props {
 export default function PriceChart({ data, height = 150 }: Props) {
   if (data.length === 0) {
     return (
-      <View className="items-center justify-center" style={{ height }}>
-        <Text className="text-gray-400">No chart data</Text>
+      <View style={[s.empty, { height }]}>
+        <Text style={s.emptyText}>No chart data</Text>
       </View>
     );
   }
@@ -19,42 +19,35 @@ export default function PriceChart({ data, height = 150 }: Props) {
   const min = Math.min(...closes);
   const max = Math.max(...closes);
   const range = max - min || 1;
-
   const isPositive = closes[closes.length - 1] >= closes[0];
   const color = isPositive ? "#22c55e" : "#ef4444";
-
-  // Simple sparkline using blocks
-  const barWidth = 100 / data.length;
+  const barWidth = `${100 / data.length}%`;
 
   return (
-    <View className="px-4">
-      <View
-        className="flex-row items-end bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden"
-        style={{ height }}
-      >
+    <View style={{ paddingHorizontal: 16 }}>
+      <View style={[s.chartContainer, { height }]}>
         {data.map((bar, i) => {
           const barHeight = ((bar.close - min) / range) * (height - 20) + 10;
           return (
             <View
               key={i}
-              style={{
-                width: `${barWidth}%`,
-                height: barHeight,
-                backgroundColor: color,
-                opacity: 0.7,
-              }}
+              style={{ width: barWidth as unknown as number, height: barHeight, backgroundColor: color, opacity: 0.7 }}
             />
           );
         })}
       </View>
-      <View className="flex-row justify-between mt-2 px-1">
-        <Text className="text-xs text-gray-400">
-          {data[0]?.time?.slice(0, 10)}
-        </Text>
-        <Text className="text-xs text-gray-400">
-          {data[data.length - 1]?.time?.slice(0, 10)}
-        </Text>
+      <View style={s.labels}>
+        <Text style={s.labelText}>{data[0]?.time?.slice(0, 10)}</Text>
+        <Text style={s.labelText}>{data[data.length - 1]?.time?.slice(0, 10)}</Text>
       </View>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  empty: { alignItems: "center", justifyContent: "center" },
+  emptyText: { color: "#9ca3af" },
+  chartContainer: { flexDirection: "row", alignItems: "flex-end", backgroundColor: "#f9fafb", borderRadius: 12, overflow: "hidden" },
+  labels: { flexDirection: "row", justifyContent: "space-between", marginTop: 8, paddingHorizontal: 4 },
+  labelText: { fontSize: 12, color: "#9ca3af" },
+});

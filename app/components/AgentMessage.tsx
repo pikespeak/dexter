@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useState } from "react";
 import Animated, { FadeIn } from "react-native-reanimated";
 
@@ -15,9 +15,9 @@ export default function AgentMessage({ type, content, toolName }: Props) {
 
   if (type === "user") {
     return (
-      <Animated.View entering={FadeIn} className="self-end max-w-[80%] mb-2">
-        <View className="bg-blue-500 rounded-2xl rounded-br-sm px-4 py-3">
-          <Text className="text-white text-base">{content}</Text>
+      <Animated.View entering={FadeIn} style={s.userWrap}>
+        <View style={s.userBubble}>
+          <Text style={s.userText}>{content}</Text>
         </View>
       </Animated.View>
     );
@@ -25,11 +25,9 @@ export default function AgentMessage({ type, content, toolName }: Props) {
 
   if (type === "thinking") {
     return (
-      <Animated.View entering={FadeIn} className="self-start max-w-[80%] mb-2">
-        <View className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
-          <Text className="text-gray-500 dark:text-gray-400 text-sm italic">
-            {content || "Thinking..."}
-          </Text>
+      <Animated.View entering={FadeIn} style={s.botWrap}>
+        <View style={s.thinkingBubble}>
+          <Text style={s.thinkingText}>{content || "Thinking..."}</Text>
         </View>
       </Animated.View>
     );
@@ -37,19 +35,10 @@ export default function AgentMessage({ type, content, toolName }: Props) {
 
   if (type === "tool") {
     return (
-      <Animated.View entering={FadeIn} className="self-start max-w-[85%] mb-2">
-        <Pressable
-          onPress={() => setExpanded(!expanded)}
-          className="bg-blue-50 dark:bg-blue-900/30 rounded-xl px-4 py-2"
-        >
-          <Text className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-            🔧 {toolName || "Tool"}
-          </Text>
-          {expanded && content && (
-            <Text className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              {content}
-            </Text>
-          )}
+      <Animated.View entering={FadeIn} style={s.botWrap}>
+        <Pressable onPress={() => setExpanded(!expanded)} style={s.toolBubble}>
+          <Text style={s.toolLabel}>🔧 {toolName || "Tool"}</Text>
+          {expanded && content ? <Text style={s.toolContent}>{content}</Text> : null}
         </Pressable>
       </Animated.View>
     );
@@ -57,24 +46,35 @@ export default function AgentMessage({ type, content, toolName }: Props) {
 
   if (type === "error") {
     return (
-      <Animated.View entering={FadeIn} className="self-start max-w-[80%] mb-2">
-        <View className="bg-red-50 dark:bg-red-900/30 rounded-2xl rounded-bl-sm px-4 py-3">
-          <Text className="text-red-600 dark:text-red-400 text-base">
-            {content}
-          </Text>
+      <Animated.View entering={FadeIn} style={s.botWrap}>
+        <View style={s.errorBubble}>
+          <Text style={s.errorText}>{content}</Text>
         </View>
       </Animated.View>
     );
   }
 
-  // answer
   return (
-    <Animated.View entering={FadeIn} className="self-start max-w-[85%] mb-2">
-      <View className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
-        <Text className="text-gray-900 dark:text-white text-base leading-6">
-          {content}
-        </Text>
+    <Animated.View entering={FadeIn} style={s.botWrap}>
+      <View style={s.answerBubble}>
+        <Text style={s.answerText}>{content}</Text>
       </View>
     </Animated.View>
   );
 }
+
+const s = StyleSheet.create({
+  userWrap: { alignSelf: "flex-end", maxWidth: "80%", marginBottom: 8 },
+  userBubble: { backgroundColor: "#2563eb", borderRadius: 16, borderBottomRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  userText: { color: "#fff", fontSize: 16 },
+  botWrap: { alignSelf: "flex-start", maxWidth: "80%", marginBottom: 8 },
+  thinkingBubble: { backgroundColor: "#f3f4f6", borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  thinkingText: { color: "#6b7280", fontSize: 14, fontStyle: "italic" },
+  toolBubble: { backgroundColor: "#eff6ff", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
+  toolLabel: { fontSize: 12, fontWeight: "600", color: "#2563eb" },
+  toolContent: { fontSize: 12, color: "#4b5563", marginTop: 4 },
+  errorBubble: { backgroundColor: "#fef2f2", borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  errorText: { color: "#dc2626", fontSize: 16 },
+  answerBubble: { backgroundColor: "#f3f4f6", borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  answerText: { color: "#111827", fontSize: 16, lineHeight: 24 },
+});

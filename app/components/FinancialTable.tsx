@@ -1,4 +1,4 @@
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 
 interface Props {
   data: Record<string, string | number | null>[];
@@ -6,7 +6,7 @@ interface Props {
 }
 
 function formatValue(val: string | number | null): string {
-  if (val === null || val === undefined) return "—";
+  if (val == null) return "—";
   if (typeof val === "number") {
     if (Math.abs(val) >= 1e9) return `$${(val / 1e9).toFixed(1)}B`;
     if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
@@ -18,8 +18,8 @@ function formatValue(val: string | number | null): string {
 export default function FinancialTable({ data, columns }: Props) {
   if (data.length === 0) {
     return (
-      <View className="p-4">
-        <Text className="text-gray-400 text-center">No data available</Text>
+      <View style={s.empty}>
+        <Text style={s.emptyText}>No data available</Text>
       </View>
     );
   }
@@ -27,30 +27,15 @@ export default function FinancialTable({ data, columns }: Props) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View>
-        {/* Header */}
-        <View className="flex-row bg-gray-100 dark:bg-gray-800 py-2 px-3 rounded-t-lg">
+        <View style={s.headerRow}>
           {columns.map((col) => (
-            <Text
-              key={col.key}
-              className="text-xs font-bold text-gray-500 dark:text-gray-400 w-28 text-right"
-            >
-              {col.label}
-            </Text>
+            <Text key={col.key} style={s.headerCell}>{col.label}</Text>
           ))}
         </View>
-        {/* Rows */}
         {data.map((row, i) => (
-          <View
-            key={i}
-            className={`flex-row py-2 px-3 ${i % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-850"}`}
-          >
+          <View key={i} style={[s.row, i % 2 === 0 ? s.rowEven : s.rowOdd]}>
             {columns.map((col) => (
-              <Text
-                key={col.key}
-                className="text-sm text-gray-700 dark:text-gray-300 w-28 text-right"
-              >
-                {formatValue(row[col.key])}
-              </Text>
+              <Text key={col.key} style={s.cell}>{formatValue(row[col.key])}</Text>
             ))}
           </View>
         ))}
@@ -58,3 +43,14 @@ export default function FinancialTable({ data, columns }: Props) {
     </ScrollView>
   );
 }
+
+const s = StyleSheet.create({
+  empty: { padding: 16 },
+  emptyText: { color: "#9ca3af", textAlign: "center" },
+  headerRow: { flexDirection: "row", backgroundColor: "#f3f4f6", paddingVertical: 8, paddingHorizontal: 12, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  headerCell: { fontSize: 12, fontWeight: "bold", color: "#6b7280", width: 112, textAlign: "right" },
+  row: { flexDirection: "row", paddingVertical: 8, paddingHorizontal: 12 },
+  rowEven: { backgroundColor: "#fff" },
+  rowOdd: { backgroundColor: "#f9fafb" },
+  cell: { fontSize: 14, color: "#374151", width: 112, textAlign: "right" },
+});

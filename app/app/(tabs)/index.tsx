@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useState, useCallback } from "react";
@@ -32,26 +32,19 @@ export default function SearchScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <View className="pt-2 pb-1 px-4">
-        <Text className="text-2xl font-bold text-gray-900 dark:text-white">
-          Dexter
-        </Text>
+    <SafeAreaView style={s.container}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Dexter</Text>
       </View>
 
       <SearchBar onSearch={handleSearch} />
 
       <ScrollView
-        className="flex-1 mt-4"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        style={s.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Watchlist */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 dark:text-white px-4 mb-3">
-            {t("search.watchlist")}
-          </Text>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>{t("search.watchlist")}</Text>
           {watchlist.length > 0 ? (
             <ScrollView
               horizontal
@@ -59,43 +52,26 @@ export default function SearchScreen() {
               contentContainerStyle={{ paddingHorizontal: 16 }}
             >
               {watchlist.map((ticker) => (
-                <WatchlistCard
-                  key={`${ticker}-${refreshKey}`}
-                  ticker={ticker}
-                  onPress={handleSearch}
-                />
+                <WatchlistCard key={`${ticker}-${refreshKey}`} ticker={ticker} onPress={handleSearch} />
               ))}
             </ScrollView>
           ) : (
-            <Text className="text-gray-400 px-4">
-              {t("search.no_watchlist")}
-            </Text>
+            <Text style={s.emptyText}>{t("search.no_watchlist")}</Text>
           )}
         </View>
 
-        {/* Recent Searches */}
         {recentSearches.length > 0 && (
-          <View className="px-4">
-            <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-lg font-semibold text-gray-900 dark:text-white">
-                {t("search.recent")}
-              </Text>
+          <View style={s.recentSection}>
+            <View style={s.recentHeader}>
+              <Text style={s.sectionTitle}>{t("search.recent")}</Text>
               <Pressable onPress={clearRecentSearches}>
-                <Text className="text-blue-500 text-sm">
-                  {t("search.clear_recent")}
-                </Text>
+                <Text style={s.clearText}>{t("search.clear_recent")}</Text>
               </Pressable>
             </View>
-            <View className="flex-row flex-wrap">
+            <View style={s.chips}>
               {recentSearches.map((search) => (
-                <Pressable
-                  key={search}
-                  onPress={() => handleSearch(search)}
-                  className="bg-white dark:bg-gray-800 rounded-full px-4 py-2 mr-2 mb-2 shadow-sm"
-                >
-                  <Text className="text-gray-700 dark:text-gray-300 text-sm font-medium">
-                    {search}
-                  </Text>
+                <Pressable key={search} onPress={() => handleSearch(search)} style={s.chip}>
+                  <Text style={s.chipText}>{search}</Text>
                 </Pressable>
               ))}
             </View>
@@ -105,3 +81,19 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  header: { paddingTop: 8, paddingBottom: 4, paddingHorizontal: 16 },
+  headerTitle: { fontSize: 24, fontWeight: "bold", color: "#111827" },
+  scroll: { flex: 1, marginTop: 16 },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", color: "#111827", paddingHorizontal: 16, marginBottom: 12 },
+  emptyText: { color: "#9ca3af", paddingHorizontal: 16 },
+  recentSection: { paddingHorizontal: 16 },
+  recentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  clearText: { color: "#2563eb", fontSize: 14 },
+  chips: { flexDirection: "row", flexWrap: "wrap" },
+  chip: { backgroundColor: "#fff", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, marginBottom: 8, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  chipText: { color: "#374151", fontSize: 14, fontWeight: "500" },
+});
