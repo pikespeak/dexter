@@ -1,13 +1,22 @@
 #!/usr/bin/env bun
-import React from 'react';
-import { render } from 'ink';
 import { config } from 'dotenv';
-import { CLI } from './cli.js';
 
 // Load environment variables
 config({ quiet: true });
 
-// Render the CLI app and wait for it to exit
-// This keeps the process alive until the user exits
-const { waitUntilExit } = render(<CLI />);
-await waitUntilExit();
+// Check for --serve or --api flag to start the API server
+const isServe = process.argv.includes('--serve') || process.argv.includes('--api');
+
+if (isServe) {
+  const { startServer } = await import('./api/server.js');
+  const port = Number(process.env.PORT) || 3000;
+  startServer(port);
+} else {
+  const React = (await import('react')).default;
+  const { render } = await import('ink');
+  const { CLI } = await import('./cli.js');
+
+  // Render the CLI app and wait for it to exit
+  const { waitUntilExit } = render(<CLI />);
+  await waitUntilExit();
+}

@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.*
+.dexter
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+tests
+__tests__
+coverage
+.vscode
