@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { Card, Chip } from 'react-native-paper';
 import { usePredictionsStore } from '../stores/predictions';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, typography, spacing, shape } from '../theme';
 
-/**
- * Matches Screen — Upcoming fixtures, Stadium Night aesthetic.
- * Scoreboard-style match cards with league overlines.
- */
 export function MatchesScreen() {
   const { upcomingMatches, isLoading, fetchUpcomingMatches } = usePredictionsStore();
   const { t } = useI18n();
@@ -21,34 +18,34 @@ export function MatchesScreen() {
     const isToday = kickoff.toDateString() === new Date().toDateString();
 
     return (
-      <TouchableOpacity style={styles.matchCard} activeOpacity={0.7}>
-        <View style={styles.matchHeader}>
-          <Text style={styles.leagueText}>{item.league}</Text>
-          <Text style={styles.dateText}>
-            {isToday
-              ? t('matches.today')
-              : kickoff.toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                })}
-          </Text>
-        </View>
-        <View style={styles.matchBody}>
-          <Text style={styles.teamText} numberOfLines={1}>
-            {item.homeTeam}
-          </Text>
-          <View style={styles.timeBadge}>
-            <Text style={styles.timeText}>
-              {kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+      <Card mode="elevated" style={styles.matchCard}>
+        <Card.Content>
+          <View style={styles.matchHeader}>
+            <Text style={styles.leagueText}>{item.league}</Text>
+            <Text style={styles.dateText}>
+              {isToday
+                ? t('matches.today')
+                : kickoff.toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })}
             </Text>
           </View>
-          <Text style={[styles.teamText, styles.awayText]} numberOfLines={1}>
-            {item.awayTeam}
-          </Text>
-        </View>
-        {item.venue && <Text style={styles.venueText}>{item.venue}</Text>}
-      </TouchableOpacity>
+          <View style={styles.matchBody}>
+            <Text style={styles.teamText} numberOfLines={1}>
+              {item.homeTeam}
+            </Text>
+            <Chip compact style={styles.timeBadge} textStyle={styles.timeText}>
+              {kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            </Chip>
+            <Text style={[styles.teamText, styles.awayText]} numberOfLines={1}>
+              {item.awayTeam}
+            </Text>
+          </View>
+          {item.venue && <Text style={styles.venueText}>{item.venue}</Text>}
+        </Card.Content>
+      </Card>
     );
   };
 
@@ -78,7 +75,7 @@ export function MatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -92,13 +89,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   matchCard: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
     marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    ...shadows.card,
+    borderRadius: shape.large,
   },
   matchHeader: {
     flexDirection: 'row',
@@ -125,18 +117,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   timeBadge: {
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+    backgroundColor: md3.surfaceContainerHighest,
     marginHorizontal: spacing.sm,
   },
   timeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+    color: md3.onSurfaceVariant,
   },
   venueText: {
     ...typography.caption,

@@ -7,12 +7,11 @@ import {
   Dimensions,
   Animated,
   FlatList,
-  Platform,
-  Share,
 } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useI18n, LOCALE_FLAGS, LOCALE_LABELS, type Locale } from '../i18n';
 import { useAuthStore } from '../stores/auth';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, colors, typography, spacing, shape, elevation } from '../theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -26,7 +25,6 @@ const LEAGUES = [
   { id: 'ligue1', key: 'league.ligue1', flag: '🇫🇷', color: '#091C3E' },
 ];
 
-// Mock gotcha prediction — showcases what Pro looks like
 const GOTCHA_PREDICTION = {
   homeTeam: 'Arsenal',
   awayTeam: 'Man City',
@@ -44,13 +42,6 @@ interface OnboardingProps {
   onComplete: () => void;
 }
 
-/**
- * Enhanced Onboarding — Conversion-optimized, sunk-cost principle.
- *
- * Flow: Language → Welcome → League Selection → Features → Gotcha Prediction → Review → Go
- *
- * Each step builds investment so users are more likely to convert.
- */
 export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const { t, locale, setLocale } = useI18n();
   const { setFavoriteLeague } = useAuthStore();
@@ -59,7 +50,6 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedLeague, setSelectedLeague] = useState<string | null>(null);
 
-  // Page definitions — order matters for conversion funnel
   const PAGE_KEYS = ['lang', 'welcome', 'league', 'step1', 'step2', 'gotcha', 'review'] as const;
   const totalPages = PAGE_KEYS.length;
 
@@ -68,7 +58,6 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
       setCurrentIndex(currentIndex + 1);
     } else {
-      // Save league before completing
       if (selectedLeague) {
         setFavoriteLeague(selectedLeague);
       }
@@ -84,8 +73,6 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   };
 
   const handleReviewRequest = () => {
-    // On native, this would use expo-store-review's requestReview()
-    // For now we just advance to next step
     goNext();
   };
 
@@ -93,30 +80,22 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
     setSelectedLeague(leagueId);
   };
 
-  const renderPage = ({ item, index }: { item: typeof PAGE_KEYS[number]; index: number }) => {
+  const renderPage = ({ item }: { item: typeof PAGE_KEYS[number] }) => {
     switch (item) {
       case 'lang':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.langContent}>
-              <Text style={pageStyles.langTitle}>{t('onboarding.selectLanguage')}</Text>
-              <View style={pageStyles.langGrid}>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.langContent}>
+              <Text style={s.langTitle}>{t('onboarding.selectLanguage')}</Text>
+              <View style={s.langGrid}>
                 {LOCALES.map((loc) => (
                   <TouchableOpacity
                     key={loc}
-                    style={[
-                      pageStyles.langOption,
-                      locale === loc && pageStyles.langOptionActive,
-                    ]}
+                    style={[s.langOption, locale === loc && s.langOptionActive]}
                     onPress={() => setLocale(loc)}
                   >
-                    <Text style={pageStyles.langFlag}>{LOCALE_FLAGS[loc]}</Text>
-                    <Text
-                      style={[
-                        pageStyles.langLabel,
-                        locale === loc && pageStyles.langLabelActive,
-                      ]}
-                    >
+                    <Text style={s.langFlag}>{LOCALE_FLAGS[loc]}</Text>
+                    <Text style={[s.langLabel, locale === loc && s.langLabelActive]}>
                       {LOCALE_LABELS[loc]}
                     </Text>
                   </TouchableOpacity>
@@ -128,46 +107,40 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
 
       case 'welcome':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.stepContent}>
-              <View style={pageStyles.iconGlow}>
-                <Text style={pageStyles.icon}>⚽</Text>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.stepContent}>
+              <View style={s.iconCircle}>
+                <Text style={s.icon}>⚽</Text>
               </View>
-              <Text style={pageStyles.stepTitle}>{t('onboarding.welcome')}</Text>
-              <Text style={pageStyles.stepSubtitle}>{t('onboarding.welcomeSub')}</Text>
+              <Text style={s.stepTitle}>{t('onboarding.welcome')}</Text>
+              <Text style={s.stepSubtitle}>{t('onboarding.welcomeSub')}</Text>
             </View>
           </View>
         );
 
       case 'league':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.leagueContent}>
-              <Text style={pageStyles.leagueTitle}>{t('onboarding.pickLeague')}</Text>
-              <Text style={pageStyles.leagueSub}>{t('onboarding.pickLeagueSub')}</Text>
-              <View style={pageStyles.leagueGrid}>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.leagueContent}>
+              <Text style={s.leagueTitle}>{t('onboarding.pickLeague')}</Text>
+              <Text style={s.leagueSub}>{t('onboarding.pickLeagueSub')}</Text>
+              <View style={s.leagueGrid}>
                 {LEAGUES.map((league) => {
                   const isSelected = selectedLeague === league.id;
                   return (
                     <TouchableOpacity
                       key={league.id}
-                      style={[
-                        pageStyles.leagueOption,
-                        isSelected && pageStyles.leagueOptionActive,
-                      ]}
+                      style={[s.leagueOption, isSelected && s.leagueOptionActive]}
                       onPress={() => handleLeagueSelect(league.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={pageStyles.leagueFlag}>{league.flag}</Text>
-                      <Text style={[
-                        pageStyles.leagueName,
-                        isSelected && pageStyles.leagueNameActive,
-                      ]}>
+                      <Text style={s.leagueFlag}>{league.flag}</Text>
+                      <Text style={[s.leagueName, isSelected && s.leagueNameActive]}>
                         {t(league.key)}
                       </Text>
                       {isSelected && (
-                        <View style={pageStyles.leagueCheck}>
-                          <Text style={pageStyles.leagueCheckText}>✓</Text>
+                        <View style={s.leagueCheck}>
+                          <Text style={s.leagueCheckText}>✓</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -180,79 +153,73 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
 
       case 'step1':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.stepContent}>
-              <View style={pageStyles.iconGlow}>
-                <Text style={pageStyles.icon}>🧠</Text>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.stepContent}>
+              <View style={s.iconCircle}>
+                <Text style={s.icon}>🧠</Text>
               </View>
-              <Text style={pageStyles.stepTitle}>{t('onboarding.step1Title')}</Text>
-              <Text style={pageStyles.stepSubtitle}>{t('onboarding.step1Sub')}</Text>
+              <Text style={s.stepTitle}>{t('onboarding.step1Title')}</Text>
+              <Text style={s.stepSubtitle}>{t('onboarding.step1Sub')}</Text>
             </View>
           </View>
         );
 
       case 'step2':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.stepContent}>
-              <View style={pageStyles.iconGlow}>
-                <Text style={pageStyles.icon}>💰</Text>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.stepContent}>
+              <View style={s.iconCircle}>
+                <Text style={s.icon}>💰</Text>
               </View>
-              <Text style={pageStyles.stepTitle}>{t('onboarding.step2Title')}</Text>
-              <Text style={pageStyles.stepSubtitle}>{t('onboarding.step2Sub')}</Text>
+              <Text style={s.stepTitle}>{t('onboarding.step2Title')}</Text>
+              <Text style={s.stepSubtitle}>{t('onboarding.step2Sub')}</Text>
             </View>
           </View>
         );
 
       case 'gotcha':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.gotchaContent}>
-              <Text style={pageStyles.gotchaTitle}>{t('onboarding.gotchaTitle')}</Text>
-              <Text style={pageStyles.gotchaSub}>{t('onboarding.gotchaSub')}</Text>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.gotchaContent}>
+              <Text style={s.gotchaTitle}>{t('onboarding.gotchaTitle')}</Text>
+              <Text style={s.gotchaSub}>{t('onboarding.gotchaSub')}</Text>
 
-              {/* Mini prediction card — the gotcha moment */}
-              <View style={pageStyles.gotchaCard}>
-                {/* Value bet badge */}
-                <View style={pageStyles.gotchaValueBadge}>
-                  <Text style={pageStyles.gotchaValueText}>{t('card.valueBet')}</Text>
+              <View style={s.gotchaCard}>
+                <View style={s.gotchaValueBadge}>
+                  <Text style={s.gotchaValueText}>{t('card.valueBet')}</Text>
                 </View>
 
-                {/* League + confidence */}
-                <View style={pageStyles.gotchaHeader}>
-                  <Text style={pageStyles.gotchaLeague}>{GOTCHA_PREDICTION.league}</Text>
-                  <View style={pageStyles.gotchaConfBadge}>
-                    <Text style={pageStyles.gotchaConfText}>{GOTCHA_PREDICTION.confidence}%</Text>
+                <View style={s.gotchaHeader}>
+                  <Text style={s.gotchaLeague}>{GOTCHA_PREDICTION.league}</Text>
+                  <View style={s.gotchaConfBadge}>
+                    <Text style={s.gotchaConfText}>{GOTCHA_PREDICTION.confidence}%</Text>
                   </View>
                 </View>
 
-                {/* Teams */}
-                <View style={pageStyles.gotchaTeams}>
-                  <View style={pageStyles.gotchaTeamCol}>
-                    <Text style={pageStyles.gotchaTeamName}>{GOTCHA_PREDICTION.homeTeam}</Text>
-                    <Text style={pageStyles.gotchaProb}>{GOTCHA_PREDICTION.homeWinProb}%</Text>
+                <View style={s.gotchaTeams}>
+                  <View style={s.gotchaTeamCol}>
+                    <Text style={s.gotchaTeamName}>{GOTCHA_PREDICTION.homeTeam}</Text>
+                    <Text style={s.gotchaProb}>{GOTCHA_PREDICTION.homeWinProb}%</Text>
                   </View>
-                  <View style={pageStyles.gotchaCenter}>
-                    <Text style={pageStyles.gotchaScore}>{GOTCHA_PREDICTION.predictedScore}</Text>
-                    <Text style={pageStyles.gotchaKickoff}>{GOTCHA_PREDICTION.kickoff}</Text>
+                  <View style={s.gotchaCenter}>
+                    <Text style={s.gotchaScore}>{GOTCHA_PREDICTION.predictedScore}</Text>
+                    <Text style={s.gotchaKickoff}>{GOTCHA_PREDICTION.kickoff}</Text>
                   </View>
-                  <View style={[pageStyles.gotchaTeamCol, { alignItems: 'flex-end' }]}>
-                    <Text style={pageStyles.gotchaTeamName}>{GOTCHA_PREDICTION.awayTeam}</Text>
-                    <Text style={pageStyles.gotchaProb}>{GOTCHA_PREDICTION.awayWinProb}%</Text>
+                  <View style={[s.gotchaTeamCol, { alignItems: 'flex-end' }]}>
+                    <Text style={s.gotchaTeamName}>{GOTCHA_PREDICTION.awayTeam}</Text>
+                    <Text style={s.gotchaProb}>{GOTCHA_PREDICTION.awayWinProb}%</Text>
                   </View>
                 </View>
 
-                {/* Probability bar */}
-                <View style={pageStyles.gotchaProbBar}>
-                  <View style={[pageStyles.gotchaProbSeg, { flex: GOTCHA_PREDICTION.homeWinProb, backgroundColor: colors.pitch.green }]} />
-                  <View style={[pageStyles.gotchaProbSeg, { flex: GOTCHA_PREDICTION.drawProb, backgroundColor: colors.text.muted }]} />
-                  <View style={[pageStyles.gotchaProbSeg, { flex: GOTCHA_PREDICTION.awayWinProb, backgroundColor: colors.data.cyan }]} />
+                <View style={s.gotchaProbBar}>
+                  <View style={[s.gotchaProbSeg, { flex: GOTCHA_PREDICTION.homeWinProb, backgroundColor: md3.primary }]} />
+                  <View style={[s.gotchaProbSeg, { flex: GOTCHA_PREDICTION.drawProb, backgroundColor: md3.outline }]} />
+                  <View style={[s.gotchaProbSeg, { flex: GOTCHA_PREDICTION.awayWinProb, backgroundColor: colors.data.cyan }]} />
                 </View>
               </View>
 
-              {/* Pro tip — conversion nudge */}
-              <View style={pageStyles.proTipBadge}>
-                <Text style={pageStyles.proTipText}>
+              <View style={s.proTipBadge}>
+                <Text style={s.proTipText}>
                   ⚡ {t('onboarding.gotchaProTip', { count: '12' })}
                 </Text>
               </View>
@@ -262,31 +229,32 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
 
       case 'review':
         return (
-          <View style={[pageStyles.page, { width: SCREEN_W }]}>
-            <View style={pageStyles.reviewContent}>
-              {/* Star display */}
-              <View style={pageStyles.starsRow}>
+          <View style={[s.page, { width: SCREEN_W }]}>
+            <View style={s.reviewContent}>
+              <View style={s.starsRow}>
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Text key={star} style={pageStyles.starIcon}>⭐</Text>
+                  <Text key={star} style={s.starIcon}>⭐</Text>
                 ))}
               </View>
-              <Text style={pageStyles.reviewTitle}>{t('onboarding.reviewTitle')}</Text>
-              <Text style={pageStyles.reviewSub}>{t('onboarding.reviewSub')}</Text>
+              <Text style={s.reviewTitle}>{t('onboarding.reviewTitle')}</Text>
+              <Text style={s.reviewSub}>{t('onboarding.reviewSub')}</Text>
 
-              <TouchableOpacity
-                style={pageStyles.reviewCta}
+              <Button
+                mode="contained"
                 onPress={handleReviewRequest}
-                activeOpacity={0.8}
+                style={s.reviewCta}
+                contentStyle={s.reviewCtaContent}
               >
-                <Text style={pageStyles.reviewCtaText}>{t('onboarding.reviewCta')}</Text>
-              </TouchableOpacity>
+                {t('onboarding.reviewCta')}
+              </Button>
 
-              <TouchableOpacity
-                style={pageStyles.reviewSkipBtn}
+              <Button
+                mode="text"
                 onPress={goNext}
+                textColor={md3.outline}
               >
-                <Text style={pageStyles.reviewSkipText}>{t('onboarding.reviewSkip')}</Text>
-              </TouchableOpacity>
+                {t('onboarding.reviewSkip')}
+              </Button>
             </View>
           </View>
         );
@@ -300,12 +268,17 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const isLastPage = currentIndex === totalPages - 1;
 
   return (
-    <View style={pageStyles.container}>
-      {/* Skip button — hidden on review/last page */}
+    <View style={s.container}>
       {!isReviewPage && !isLastPage && currentIndex > 0 && (
-        <TouchableOpacity style={pageStyles.skipButton} onPress={handleSkip}>
-          <Text style={pageStyles.skipText}>{t('onboarding.skip')}</Text>
-        </TouchableOpacity>
+        <Button
+          mode="text"
+          onPress={handleSkip}
+          style={s.skipButton}
+          textColor={md3.outline}
+          compact
+        >
+          {t('onboarding.skip')}
+        </Button>
       )}
 
       <FlatList
@@ -328,11 +301,9 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
         })}
       />
 
-      {/* Bottom: dots + CTA — hidden on review page (has its own buttons) */}
       {!isReviewPage && (
-        <View style={pageStyles.bottom}>
-          {/* Page dots */}
-          <View style={pageStyles.dotsRow}>
+        <View style={s.bottom}>
+          <View style={s.dotsRow}>
             {Array.from({ length: totalPages }).map((_, i) => {
               const inputRange = [(i - 1) * SCREEN_W, i * SCREEN_W, (i + 1) * SCREEN_W];
               const dotWidth = scrollX.interpolate({
@@ -348,43 +319,36 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
               return (
                 <Animated.View
                   key={i}
-                  style={[
-                    pageStyles.dot,
-                    { width: dotWidth, opacity: dotOpacity },
-                  ]}
+                  style={[s.dot, { width: dotWidth, opacity: dotOpacity }]}
                 />
               );
             })}
           </View>
 
-          <TouchableOpacity style={pageStyles.ctaButton} onPress={goNext} activeOpacity={0.8}>
-            <Text style={pageStyles.ctaText}>
-              {isLastPage ? t('onboarding.getStarted') : t('onboarding.next')}
-            </Text>
-          </TouchableOpacity>
+          <Button
+            mode="contained"
+            onPress={goNext}
+            style={s.ctaButton}
+            contentStyle={s.ctaButtonContent}
+          >
+            {isLastPage ? t('onboarding.getStarted') : t('onboarding.next')}
+          </Button>
         </View>
       )}
     </View>
   );
 }
 
-const pageStyles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   skipButton: {
     position: 'absolute',
-    top: 56,
-    right: spacing.xl,
+    top: 48,
+    right: spacing.md,
     zIndex: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  skipText: {
-    ...typography.bodySmall,
-    color: colors.text.muted,
-    fontWeight: '600',
   },
   page: {
     flex: 1,
@@ -392,24 +356,22 @@ const pageStyles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // — Step content (welcome, features) —
+  // Step content
   stepContent: {
     alignItems: 'center',
     paddingHorizontal: spacing['4xl'],
   },
-  iconGlow: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 1,
-    borderColor: colors.pitch.greenMuted,
+  iconCircle: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: md3.primaryContainer + '40',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing['3xl'],
   },
   icon: {
-    fontSize: 56,
+    fontSize: 52,
   },
   stepTitle: {
     ...typography.h1,
@@ -419,10 +381,10 @@ const pageStyles = StyleSheet.create({
   stepSubtitle: {
     ...typography.body,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
 
-  // — Language page —
+  // Language
   langContent: {
     alignItems: 'center',
     paddingHorizontal: spacing['2xl'],
@@ -440,30 +402,30 @@ const pageStyles = StyleSheet.create({
   langOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.large,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
-    borderWidth: 1.5,
-    borderColor: colors.border.subtle,
+    borderWidth: 2,
+    borderColor: 'transparent',
     gap: spacing.lg,
   },
   langOptionActive: {
-    borderColor: colors.pitch.green,
-    backgroundColor: colors.pitch.greenFaint,
+    borderColor: md3.primary,
+    backgroundColor: md3.primaryContainer + '25',
   },
   langFlag: {
     fontSize: 28,
   },
   langLabel: {
     ...typography.h3,
-    color: colors.text.secondary,
+    color: md3.onSurfaceVariant,
   },
   langLabelActive: {
-    color: colors.pitch.green,
+    color: md3.primary,
   },
 
-  // — League selection page —
+  // League selection
   leagueContent: {
     alignItems: 'center',
     paddingHorizontal: spacing['2xl'],
@@ -486,44 +448,44 @@ const pageStyles = StyleSheet.create({
   leagueOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.large,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
-    borderWidth: 1.5,
-    borderColor: colors.border.subtle,
+    borderWidth: 2,
+    borderColor: 'transparent',
     gap: spacing.lg,
   },
   leagueOptionActive: {
-    borderColor: colors.pitch.green,
-    backgroundColor: colors.pitch.greenFaint,
+    borderColor: md3.primary,
+    backgroundColor: md3.primaryContainer + '25',
   },
   leagueFlag: {
     fontSize: 24,
   },
   leagueName: {
     ...typography.h3,
-    color: colors.text.secondary,
+    color: md3.onSurfaceVariant,
     flex: 1,
   },
   leagueNameActive: {
-    color: colors.pitch.green,
+    color: md3.primary,
   },
   leagueCheck: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.pitch.green,
+    backgroundColor: md3.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   leagueCheckText: {
-    color: colors.text.inverse,
+    color: md3.onPrimary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 
-  // — Gotcha prediction page —
+  // Gotcha prediction
   gotchaContent: {
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
@@ -541,28 +503,25 @@ const pageStyles = StyleSheet.create({
   },
   gotchaCard: {
     width: '100%',
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.tertiaryContainer + '30',
+    borderRadius: shape.large,
     padding: spacing.lg,
-    borderWidth: 1.5,
-    borderColor: colors.gold.muted,
-    ...shadows.goldGlow,
+    borderWidth: 1,
+    borderColor: md3.tertiary + '40',
   },
   gotchaValueBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.gold.faint,
-    borderWidth: 1,
-    borderColor: colors.gold.muted,
+    backgroundColor: md3.tertiaryContainer,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+    paddingVertical: 3,
+    borderRadius: shape.small,
     marginBottom: spacing.md,
   },
   gotchaValueText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: colors.gold.primary,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: md3.onTertiaryContainer,
   },
   gotchaHeader: {
     flexDirection: 'row',
@@ -574,16 +533,15 @@ const pageStyles = StyleSheet.create({
     ...typography.overline,
   },
   gotchaConfBadge: {
-    borderWidth: 1.5,
-    borderColor: colors.pitch.greenMuted,
-    borderRadius: radius.sm,
+    backgroundColor: md3.primary + '18',
+    borderRadius: shape.small,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   gotchaConfText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.pitch.green,
+    fontSize: 12,
+    fontWeight: '600',
+    color: md3.primary,
   },
   gotchaTeams: {
     flexDirection: 'row',
@@ -608,7 +566,7 @@ const pageStyles = StyleSheet.create({
   gotchaScore: {
     ...typography.score,
     fontSize: 22,
-    color: colors.text.primary,
+    color: md3.onSurface,
   },
   gotchaKickoff: {
     ...typography.caption,
@@ -625,25 +583,21 @@ const pageStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-
-  // Pro tip below card
   proTipBadge: {
     marginTop: spacing.xl,
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 1,
-    borderColor: colors.border.accent,
-    borderRadius: radius.md,
+    backgroundColor: md3.primaryContainer + '40',
+    borderRadius: shape.medium,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   proTipText: {
     ...typography.bodySmall,
-    color: colors.pitch.green,
+    color: md3.onPrimaryContainer,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '500',
   },
 
-  // — Review prompt page —
+  // Review
   reviewContent: {
     alignItems: 'center',
     paddingHorizontal: spacing['3xl'],
@@ -667,30 +621,15 @@ const pageStyles = StyleSheet.create({
     marginBottom: spacing['3xl'],
   },
   reviewCta: {
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing['4xl'],
-    marginBottom: spacing.lg,
+    borderRadius: shape.full,
     width: '100%',
-    alignItems: 'center',
-    ...shadows.glow,
+    marginBottom: spacing.lg,
   },
-  reviewCtaText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 17,
-  },
-  reviewSkipBtn: {
-    paddingVertical: spacing.md,
-  },
-  reviewSkipText: {
-    ...typography.body,
-    color: colors.text.muted,
-    fontWeight: '600',
+  reviewCtaContent: {
+    paddingVertical: 4,
   },
 
-  // — Bottom navigation —
+  // Bottom
   bottom: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing['5xl'],
@@ -705,17 +644,12 @@ const pageStyles = StyleSheet.create({
   dot: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.pitch.green,
+    backgroundColor: md3.primary,
   },
   ctaButton: {
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
+    borderRadius: shape.full,
   },
-  ctaText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 17,
+  ctaButtonContent: {
+    paddingVertical: 4,
   },
 });

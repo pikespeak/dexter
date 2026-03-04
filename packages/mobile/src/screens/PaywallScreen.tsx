@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Button, IconButton, List, RadioButton, Icon } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { getPackages, purchasePackage, restorePurchases } from '../services/purchases';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, typography, spacing, shape, elevation } from '../theme';
+import { TouchableOpacity } from 'react-native';
 
 type PlanId = 'weekly' | 'monthly' | 'yearly';
 
@@ -63,13 +63,6 @@ const FEATURES = [
 
 const SOCIAL_PROOF_COUNT = '12,847';
 
-/**
- * Paywall Screen — Conversion-optimized with 3-tier pricing.
- *
- * Weekly (hook), Monthly (default), Yearly (best value + trial).
- * Trial attached to yearly only — drives annual commitment.
- * Social proof + feature list + guarantee text.
- */
 export function PaywallScreen() {
   const navigation = useNavigation();
   const { t } = useI18n();
@@ -126,9 +119,13 @@ export function PaywallScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Close */}
-      <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.closeText}>{t('paywall.close')}</Text>
-      </TouchableOpacity>
+      <IconButton
+        icon="close"
+        iconColor={md3.outline}
+        size={24}
+        onPress={() => navigation.goBack()}
+        style={styles.closeButton}
+      />
 
       {/* Hero */}
       <View style={styles.hero}>
@@ -139,7 +136,7 @@ export function PaywallScreen() {
         <Text style={styles.heroSubtitle}>{t('paywall.subtitle')}</Text>
       </View>
 
-      {/* Social proof */}
+      {/* Social proof — M3 tonal chip */}
       <View style={styles.socialProof}>
         <Text style={styles.socialProofText}>
           {t('paywall.socialProof', { count: SOCIAL_PROOF_COUNT })}
@@ -149,10 +146,17 @@ export function PaywallScreen() {
       {/* Feature list */}
       <View style={styles.features}>
         {FEATURES.map((featureKey) => (
-          <View key={featureKey} style={styles.featureRow}>
-            <Text style={styles.featureCheck}>✓</Text>
-            <Text style={styles.featureText}>{t(featureKey)}</Text>
-          </View>
+          <List.Item
+            key={featureKey}
+            title={t(featureKey)}
+            titleStyle={styles.featureText}
+            left={() => (
+              <View style={styles.featureCheckCircle}>
+                <Icon source="check" size={14} color={md3.onPrimaryContainer} />
+              </View>
+            )}
+            style={styles.featureRow}
+          />
         ))}
       </View>
 
@@ -173,7 +177,6 @@ export function PaywallScreen() {
               onPress={() => setSelectedPlan(tier.id)}
               activeOpacity={0.7}
             >
-              {/* Best value / trial badges */}
               {tier.badge && (
                 <View style={styles.bestValueBadge}>
                   <Text style={styles.bestValueText}>{t(tier.badge)}</Text>
@@ -181,10 +184,13 @@ export function PaywallScreen() {
               )}
 
               <View style={styles.tierRow}>
-                {/* Radio indicator */}
-                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                  {isSelected && <View style={styles.radioInner} />}
-                </View>
+                <RadioButton
+                  value={tier.id}
+                  status={isSelected ? 'checked' : 'unchecked'}
+                  onPress={() => setSelectedPlan(tier.id)}
+                  color={isYearly && isSelected ? md3.tertiary : md3.primary}
+                  uncheckedColor={md3.outline}
+                />
 
                 <View style={styles.tierInfo}>
                   <View style={styles.tierLabelRow}>
@@ -220,33 +226,31 @@ export function PaywallScreen() {
         })}
       </View>
 
-      {/* CTA */}
-      <TouchableOpacity
-        style={[styles.ctaButton, loading && styles.ctaDisabled]}
+      {/* CTA — M3 filled button */}
+      <Button
+        mode="contained"
         onPress={handleSubscribe}
+        loading={loading}
         disabled={loading}
-        activeOpacity={0.8}
+        style={styles.ctaButton}
+        contentStyle={styles.ctaButtonContent}
       >
-        {loading ? (
-          <ActivityIndicator color={colors.text.inverse} />
-        ) : (
-          <Text style={styles.ctaText}>
-            {hasFreeTrial ? t('paywall.trialCta') : t('paywall.subscribe')}
-          </Text>
-        )}
-      </TouchableOpacity>
+        {hasFreeTrial ? t('paywall.trialCta') : t('paywall.subscribe')}
+      </Button>
 
-      {/* Guarantee text */}
       {hasFreeTrial && (
         <Text style={styles.guarantee}>{t('paywall.guarantee')}</Text>
       )}
 
-      {/* Restore */}
-      <TouchableOpacity style={styles.restoreButton} onPress={handleRestore}>
-        <Text style={styles.restoreText}>{t('paywall.restore')}</Text>
-      </TouchableOpacity>
+      <Button
+        mode="text"
+        onPress={handleRestore}
+        style={styles.restoreButton}
+        textColor={md3.primary}
+      >
+        {t('paywall.restore')}
+      </Button>
 
-      {/* Terms */}
       <Text style={styles.terms}>{t('paywall.terms')}</Text>
     </ScrollView>
   );
@@ -255,22 +259,16 @@ export function PaywallScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   content: {
     paddingBottom: spacing['5xl'],
   },
   closeButton: {
     position: 'absolute',
-    top: 56,
-    right: spacing.xl,
+    top: 48,
+    right: spacing.md,
     zIndex: 10,
-    padding: spacing.sm,
-  },
-  closeText: {
-    ...typography.bodySmall,
-    color: colors.text.muted,
-    fontWeight: '600',
   },
 
   // Hero
@@ -284,11 +282,10 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.pitch.greenFaint,
+    backgroundColor: md3.primaryContainer + '50',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing['2xl'],
-    ...shadows.glow,
   },
   heroTitle: {
     ...typography.h1,
@@ -305,38 +302,38 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.xl,
     marginBottom: spacing.xl,
     paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 1,
-    borderColor: colors.border.accent,
+    borderRadius: shape.small,
+    backgroundColor: md3.primaryContainer + '40',
     alignItems: 'center',
   },
   socialProofText: {
     ...typography.bodySmall,
-    color: colors.pitch.green,
-    fontWeight: '600',
+    color: md3.onPrimaryContainer,
+    fontWeight: '500',
   },
 
   // Features
   features: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing['2xl'],
-    gap: spacing.md,
   },
   featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    paddingVertical: 0,
+    minHeight: 40,
   },
-  featureCheck: {
-    color: colors.pitch.green,
-    fontSize: 16,
-    fontWeight: '700',
+  featureCheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: md3.primaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   featureText: {
     ...typography.body,
-    color: colors.text.primary,
-    fontSize: 15,
+    color: md3.onSurface,
+    fontSize: 14,
   },
 
   // Tiers
@@ -346,56 +343,40 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   tierCard: {
-    borderRadius: radius.lg,
+    borderRadius: shape.large,
     padding: spacing.lg,
-    backgroundColor: colors.bg.card,
+    backgroundColor: md3.surfaceContainerHigh,
     borderWidth: 2,
-    borderColor: colors.border.subtle,
+    borderColor: 'transparent',
+    ...elevation.level1,
   },
   tierCardSelected: {
-    borderColor: colors.pitch.green,
+    borderColor: md3.primary,
+    backgroundColor: md3.primaryContainer + '20',
   },
   tierCardYearly: {
-    borderColor: colors.gold.primary,
-    ...shadows.goldGlow,
+    borderColor: md3.tertiary,
+    backgroundColor: md3.tertiaryContainer + '20',
   },
   bestValueBadge: {
     position: 'absolute',
     top: -11,
     right: spacing.lg,
-    backgroundColor: colors.gold.primary,
+    backgroundColor: md3.tertiary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
+    borderRadius: shape.small,
   },
   bestValueText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: colors.text.inverse,
-    letterSpacing: 0.8,
+    fontWeight: '600',
+    color: md3.onTertiary,
+    letterSpacing: 0.5,
   },
   tierRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-  },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.border.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioSelected: {
-    borderColor: colors.pitch.green,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.pitch.green,
+    gap: spacing.sm,
   },
   tierInfo: {
     flex: 1,
@@ -407,29 +388,27 @@ const styles = StyleSheet.create({
   },
   tierLabel: {
     ...typography.h3,
-    color: colors.text.secondary,
+    color: md3.onSurfaceVariant,
   },
   tierLabelSelected: {
-    color: colors.text.primary,
+    color: md3.onSurface,
   },
   trialBadge: {
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 1,
-    borderColor: colors.border.accent,
+    backgroundColor: md3.primaryContainer,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 1,
-    borderRadius: radius.sm,
+    paddingVertical: 2,
+    borderRadius: shape.small,
   },
   trialText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: colors.pitch.green,
-    letterSpacing: 0.3,
+    fontWeight: '500',
+    color: md3.onPrimaryContainer,
+    letterSpacing: 0.1,
   },
   tierSavings: {
     ...typography.caption,
-    color: colors.pitch.green,
-    fontWeight: '600',
+    color: md3.primary,
+    fontWeight: '500',
     marginTop: 2,
   },
   tierPriceCol: {
@@ -438,56 +417,41 @@ const styles = StyleSheet.create({
   tierPrice: {
     ...typography.score,
     fontSize: 22,
-    color: colors.text.muted,
+    color: md3.outline,
   },
   tierPriceSelected: {
-    color: colors.pitch.green,
+    color: md3.primary,
   },
   tierPriceYearly: {
-    color: colors.gold.primary,
+    color: md3.tertiary,
   },
   tierInterval: {
     ...typography.caption,
-    color: colors.text.muted,
+    color: md3.outline,
   },
 
   // CTA
   ctaButton: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.sm,
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    ...shadows.glow,
+    borderRadius: shape.full,
   },
-  ctaDisabled: {
-    opacity: 0.7,
-  },
-  ctaText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 17,
+  ctaButtonContent: {
+    paddingVertical: 4,
   },
 
   // Guarantee
   guarantee: {
     ...typography.bodySmall,
     textAlign: 'center',
-    color: colors.pitch.green,
-    fontWeight: '600',
+    color: md3.primary,
+    fontWeight: '500',
     marginBottom: spacing.md,
   },
 
   // Restore
   restoreButton: {
-    alignItems: 'center',
-    padding: spacing.md,
-  },
-  restoreText: {
-    ...typography.bodySmall,
-    color: colors.pitch.green,
-    fontWeight: '600',
+    alignSelf: 'center',
   },
 
   // Terms

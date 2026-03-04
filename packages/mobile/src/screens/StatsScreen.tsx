@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Card } from 'react-native-paper';
 import { usePredictionsStore } from '../stores/predictions';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, typography, spacing, shape } from '../theme';
 
-/**
- * Stats Screen — Performance tracking, Stadium Night aesthetic.
- * Big scoreboard numbers, green/red P/L coloring, trust-building disclaimer.
- */
 export function StatsScreen() {
   const { performance, fetchPerformance } = usePredictionsStore();
   const { t } = useI18n();
@@ -17,7 +14,7 @@ export function StatsScreen() {
   }, []);
 
   const plValue = parseFloat(performance?.averageProfitLoss || '0');
-  const plColor = plValue >= 0 ? colors.pitch.green : colors.alert.red;
+  const plColor = plValue >= 0 ? md3.primary : md3.error;
 
   return (
     <View style={styles.container}>
@@ -28,30 +25,38 @@ export function StatsScreen() {
 
       <View style={styles.grid}>
         {/* Hit Rate — hero card */}
-        <View style={[styles.statCard, styles.heroCard]}>
-          <Text style={styles.heroValue}>{performance?.hitRate || '—'}</Text>
-          <Text style={styles.statLabel}>{t('stats.hitRate')}</Text>
-        </View>
+        <Card mode="elevated" style={[styles.statCard, styles.heroCard]}>
+          <Card.Content style={styles.statCardContent}>
+            <Text style={styles.heroValue}>{performance?.hitRate || '—'}</Text>
+            <Text style={styles.statLabel}>{t('stats.hitRate')}</Text>
+          </Card.Content>
+        </Card>
 
         {/* P/L */}
-        <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: plColor }]}>
-            {plValue >= 0 ? '+' : ''}{performance?.averageProfitLoss || '0.00'}
-          </Text>
-          <Text style={styles.statLabel}>{t('stats.avgPL')}</Text>
-        </View>
+        <Card mode="elevated" style={styles.statCard}>
+          <Card.Content style={styles.statCardContent}>
+            <Text style={[styles.statValue, { color: plColor }]}>
+              {plValue >= 0 ? '+' : ''}{performance?.averageProfitLoss || '0.00'}
+            </Text>
+            <Text style={styles.statLabel}>{t('stats.avgPL')}</Text>
+          </Card.Content>
+        </Card>
 
         {/* Total Predictions */}
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{performance?.totalPredictions || 0}</Text>
-          <Text style={styles.statLabel}>{t('stats.predictions')}</Text>
-        </View>
+        <Card mode="elevated" style={styles.statCard}>
+          <Card.Content style={styles.statCardContent}>
+            <Text style={styles.statValue}>{performance?.totalPredictions || 0}</Text>
+            <Text style={styles.statLabel}>{t('stats.predictions')}</Text>
+          </Card.Content>
+        </Card>
 
         {/* Correct */}
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{performance?.correctPredictions || 0}</Text>
-          <Text style={styles.statLabel}>{t('stats.correct')}</Text>
-        </View>
+        <Card mode="elevated" style={styles.statCard}>
+          <Card.Content style={styles.statCardContent}>
+            <Text style={styles.statValue}>{performance?.correctPredictions || 0}</Text>
+            <Text style={styles.statLabel}>{t('stats.correct')}</Text>
+          </Card.Content>
+        </Card>
       </View>
 
       <View style={styles.disclaimer}>
@@ -64,7 +69,7 @@ export function StatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -76,7 +81,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
     marginTop: spacing.xs,
   },
   grid: {
@@ -86,27 +91,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   statCard: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
     width: '47%',
+    borderRadius: shape.large,
+  },
+  statCardContent: {
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    ...shadows.card,
+    paddingVertical: spacing.xl,
   },
   heroCard: {
-    width: '47%',
-    borderColor: colors.border.accent,
+    backgroundColor: md3.primaryContainer + '40',
   },
   heroValue: {
     ...typography.display,
-    color: colors.pitch.green,
+    color: md3.primary,
     marginBottom: spacing.xs,
   },
   statValue: {
     ...typography.score,
-    color: colors.text.primary,
+    color: md3.onSurface,
     marginBottom: spacing.xs,
   },
   statLabel: {
@@ -116,14 +118,12 @@ const styles = StyleSheet.create({
   disclaimer: {
     margin: spacing.lg,
     padding: spacing.lg,
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+    backgroundColor: md3.surfaceContainer,
+    borderRadius: shape.medium,
   },
   disclaimerText: {
     ...typography.caption,
-    lineHeight: 18,
+    lineHeight: 16,
     textAlign: 'center',
   },
 });

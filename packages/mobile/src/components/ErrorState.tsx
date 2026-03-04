@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Button, Icon } from 'react-native-paper';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius } from '../theme';
+import { md3, typography, spacing, shape } from '../theme';
 
 interface ErrorStateProps {
   message?: string;
@@ -9,27 +10,29 @@ interface ErrorStateProps {
 }
 
 /**
- * Error state component — Stadium Night aesthetic.
+ * Error state — M3 design.
  */
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   const { t } = useI18n();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>!</Text>
+      <View style={styles.iconCircle}>
+        <Icon source="alert-circle" size={28} color={md3.onErrorContainer} />
+      </View>
       <Text style={styles.title}>{t('error.title')}</Text>
       <Text style={styles.message}>{message || t('error.generic')}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} activeOpacity={0.8}>
-          <Text style={styles.retryText}>{t('error.retry')}</Text>
-        </TouchableOpacity>
+        <Button mode="contained" onPress={onRetry} style={styles.retryButton}>
+          {t('error.retry')}
+        </Button>
       )}
     </View>
   );
 }
 
 /**
- * Offline state banner.
+ * Offline state banner — M3 error container.
  */
 export function OfflineState() {
   const { t } = useI18n();
@@ -47,10 +50,13 @@ const styles = StyleSheet.create({
     padding: spacing['4xl'],
     paddingTop: spacing['5xl'],
   },
-  icon: {
-    fontSize: 48,
-    color: colors.alert.red,
-    fontWeight: '700',
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: md3.errorContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   title: {
@@ -61,29 +67,20 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlign: 'center',
     marginBottom: spacing['2xl'],
-    lineHeight: 22,
+    lineHeight: 20,
   },
   retryButton: {
-    backgroundColor: colors.pitch.green,
-    paddingHorizontal: spacing['3xl'],
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-  },
-  retryText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 14,
+    borderRadius: shape.full,
   },
   offlineBanner: {
-    backgroundColor: colors.alert.redFaint,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.alert.redMuted,
+    backgroundColor: md3.errorContainer,
     padding: spacing.md,
     alignItems: 'center',
   },
   offlineText: {
-    color: colors.alert.red,
-    fontSize: 13,
+    color: md3.onErrorContainer,
+    fontSize: 12,
     fontWeight: '500',
+    letterSpacing: 0.4,
   },
 });

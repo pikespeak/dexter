@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { Surface, Chip } from 'react-native-paper';
+import { md3, colors, typography, spacing, shape } from '../theme';
 import { useI18n } from '../i18n';
 
 interface PredictionCardProps {
@@ -29,13 +30,7 @@ interface PredictionCardProps {
 }
 
 /**
- * Prediction Card — Stadium Night design.
- *
- * Features:
- * - Animated probability bar with pitch-green glow
- * - Confidence ring (green/gold/red based on threshold)
- * - Value Bet badge with gold accent
- * - Scoreboard-inspired typography
+ * Prediction Card — M3 Filled Card variant using Paper Surface.
  */
 export function PredictionCard({ prediction, onPress }: PredictionCardProps) {
   const { t } = useI18n();
@@ -49,10 +44,10 @@ export function PredictionCard({ prediction, onPress }: PredictionCardProps) {
   const isLive = new Date(match.kickoff) <= new Date();
   const confidenceColor =
     pred.confidence >= 70
-      ? colors.pitch.green
+      ? md3.primary
       : pred.confidence >= 50
-        ? colors.gold.primary
-        : colors.alert.red;
+        ? md3.tertiary
+        : md3.error;
 
   // Determine predicted outcome
   const maxProb = Math.max(pred.homeWinProb, pred.drawProb, pred.awayWinProb);
@@ -65,126 +60,116 @@ export function PredictionCard({ prediction, onPress }: PredictionCardProps) {
 
   return (
     <TouchableOpacity
-      style={[styles.card, prediction.isValueBet && styles.valueBetCard]}
       onPress={onPress}
       activeOpacity={0.7}
+      style={styles.touchable}
     >
-      {/* Header: League + Confidence + Live/Value badges */}
-      <View style={styles.header}>
-        <Text style={styles.league}>{match.league}</Text>
-        <View style={styles.badges}>
-          {prediction.isValueBet && (
-            <View style={styles.valueBetBadge}>
-              <Text style={styles.valueBetText}>{t('card.valueBet')}</Text>
-            </View>
-          )}
-          {isLive && (
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>{t('home.liveTag')}</Text>
-            </View>
-          )}
-          <View style={[styles.confidenceBadge, { borderColor: confidenceColor + '50' }]}>
-            <Text style={[styles.confidenceValue, { color: confidenceColor }]}>
+      <Surface
+        style={[styles.card, prediction.isValueBet && styles.valueBetCard]}
+        elevation={2}
+      >
+        {/* Header: League + Confidence + Live/Value badges */}
+        <View style={styles.header}>
+          <Text style={styles.league}>{match.league}</Text>
+          <View style={styles.badges}>
+            {prediction.isValueBet && (
+              <Chip
+                mode="flat"
+                compact
+                style={styles.valueBetChip}
+                textStyle={styles.valueBetText}
+              >
+                {t('card.valueBet')}
+              </Chip>
+            )}
+            {isLive && (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>{t('home.liveTag')}</Text>
+              </View>
+            )}
+            <Chip
+              mode="flat"
+              compact
+              style={[styles.confidenceChip, { backgroundColor: confidenceColor + '18' }]}
+              textStyle={[styles.confidenceValue, { color: confidenceColor }]}
+            >
               {pred.confidence}%
-            </Text>
+            </Chip>
           </View>
         </View>
-      </View>
 
-      {/* Teams + Probabilities */}
-      <View style={styles.teamsRow}>
-        <View style={styles.teamCol}>
-          <Text style={styles.teamName} numberOfLines={1}>
-            {match.homeTeam}
-          </Text>
-          <Text style={styles.probNumber}>{pred.homeWinProb}%</Text>
+        {/* Teams + Probabilities */}
+        <View style={styles.teamsRow}>
+          <View style={styles.teamCol}>
+            <Text style={styles.teamName} numberOfLines={1}>
+              {match.homeTeam}
+            </Text>
+            <Text style={styles.probNumber}>{pred.homeWinProb}%</Text>
+          </View>
+
+          <View style={styles.centerCol}>
+            <Text style={styles.kickoffLabel}>{t('card.kickoff')}</Text>
+            <Text style={styles.kickoffTime}>{kickoffTime}</Text>
+            {pred.predictedScore && (
+              <Text style={styles.predictedScore}>{pred.predictedScore}</Text>
+            )}
+          </View>
+
+          <View style={[styles.teamCol, styles.awayCol]}>
+            <Text style={styles.teamName} numberOfLines={1}>
+              {match.awayTeam}
+            </Text>
+            <Text style={styles.probNumber}>{pred.awayWinProb}%</Text>
+          </View>
         </View>
 
-        <View style={styles.centerCol}>
-          <Text style={styles.kickoffLabel}>{t('card.kickoff')}</Text>
-          <Text style={styles.kickoffTime}>{kickoffTime}</Text>
-          {pred.predictedScore && (
-            <Text style={styles.predictedScore}>{pred.predictedScore}</Text>
+        {/* Probability bar */}
+        <View style={styles.probBarContainer}>
+          <View style={[styles.probBarSegment, styles.homeSegment, { flex: pred.homeWinProb }]} />
+          <View style={[styles.probBarSegment, styles.drawSegment, { flex: pred.drawProb }]} />
+          <View style={[styles.probBarSegment, styles.awaySegment, { flex: pred.awayWinProb }]} />
+        </View>
+
+        {/* Draw row */}
+        <View style={styles.drawRow}>
+          <Text style={styles.drawLabel}>{t('card.draw')}</Text>
+          <Text style={styles.drawProb}>{pred.drawProb}%</Text>
+        </View>
+
+        {/* Tags — M3 Chips */}
+        <View style={styles.tagsRow}>
+          <Chip mode="flat" compact style={styles.chipTonal} textStyle={styles.chipTextTonal}>
+            {predictedOutcome}
+          </Chip>
+          {pred.overUnder25 && (
+            <Chip mode="flat" compact style={styles.chip} textStyle={styles.chipText}>
+              {pred.overUnder25 === 'over' ? t('card.over25') : t('card.under25')}
+            </Chip>
+          )}
+          {pred.btts !== undefined && (
+            <Chip mode="flat" compact style={styles.chip} textStyle={styles.chipText}>
+              {pred.btts ? t('card.bttsYes') : t('card.bttsNo')}
+            </Chip>
           )}
         </View>
-
-        <View style={[styles.teamCol, styles.awayCol]}>
-          <Text style={styles.teamName} numberOfLines={1}>
-            {match.awayTeam}
-          </Text>
-          <Text style={styles.probNumber}>{pred.awayWinProb}%</Text>
-        </View>
-      </View>
-
-      {/* Probability bar */}
-      <View style={styles.probBarContainer}>
-        <View
-          style={[
-            styles.probBarSegment,
-            styles.homeSegment,
-            { flex: pred.homeWinProb },
-          ]}
-        />
-        <View
-          style={[
-            styles.probBarSegment,
-            styles.drawSegment,
-            { flex: pred.drawProb },
-          ]}
-        />
-        <View
-          style={[
-            styles.probBarSegment,
-            styles.awaySegment,
-            { flex: pred.awayWinProb },
-          ]}
-        />
-      </View>
-
-      {/* Draw row */}
-      <View style={styles.drawRow}>
-        <Text style={styles.drawLabel}>{t('card.draw')}</Text>
-        <Text style={styles.drawProb}>{pred.drawProb}%</Text>
-      </View>
-
-      {/* Tags */}
-      <View style={styles.tagsRow}>
-        <View style={[styles.tag, styles.outcomeTag]}>
-          <Text style={styles.tagText}>{predictedOutcome}</Text>
-        </View>
-        {pred.overUnder25 && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>
-              {pred.overUnder25 === 'over' ? t('card.over25') : t('card.under25')}
-            </Text>
-          </View>
-        )}
-        {pred.btts !== undefined && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>
-              {pred.btts ? t('card.bttsYes') : t('card.bttsNo')}
-            </Text>
-          </View>
-        )}
-      </View>
+      </Surface>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+  touchable: {
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    ...shadows.card,
+  },
+  card: {
+    borderRadius: shape.large,
+    padding: spacing.lg,
   },
   valueBetCard: {
-    borderColor: colors.gold.muted,
-    ...shadows.goldGlow,
+    backgroundColor: md3.tertiaryContainer + '30',
+    borderWidth: 1,
+    borderColor: md3.tertiary + '40',
   },
   // Header
   header: {
@@ -202,50 +187,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  valueBetBadge: {
-    backgroundColor: colors.gold.faint,
-    borderWidth: 1,
-    borderColor: colors.gold.muted,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+  valueBetChip: {
+    backgroundColor: md3.tertiaryContainer,
+    height: 24,
   },
   valueBetText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    color: colors.gold.primary,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: md3.onTertiaryContainer,
   },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.alert.redFaint,
+    backgroundColor: md3.errorContainer,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radius.sm,
+    borderRadius: shape.small,
     gap: 4,
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.alert.red,
+    backgroundColor: md3.onErrorContainer,
   },
   liveText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: colors.alert.red,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: md3.onErrorContainer,
   },
-  confidenceBadge: {
-    borderWidth: 1.5,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+  confidenceChip: {
+    height: 24,
   },
   confidenceValue: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   // Teams
   teamsRow: {
@@ -275,15 +254,16 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   kickoffTime: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 0.4,
+    color: md3.onSurfaceVariant,
   },
   predictedScore: {
     ...typography.score,
     fontSize: 22,
     marginTop: spacing.xs,
-    color: colors.text.primary,
+    color: md3.onSurface,
   },
   // Probability bar
   probBarContainer: {
@@ -299,10 +279,10 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   homeSegment: {
-    backgroundColor: colors.pitch.green,
+    backgroundColor: md3.primary,
   },
   drawSegment: {
-    backgroundColor: colors.text.muted,
+    backgroundColor: md3.outline,
   },
   awaySegment: {
     backgroundColor: colors.data.cyan,
@@ -315,34 +295,36 @@ const styles = StyleSheet.create({
   },
   drawLabel: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
   },
   drawProb: {
     ...typography.bodySmall,
-    color: colors.text.muted,
-    fontWeight: '600',
+    color: md3.outline,
+    fontWeight: '500',
   },
-  // Tags
+  // M3 Chips
   tagsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  tag: {
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+  chip: {
+    backgroundColor: md3.surfaceContainerHighest,
+    height: 28,
   },
-  outcomeTag: {
-    backgroundColor: colors.pitch.greenFaint,
-    borderColor: colors.border.accent,
+  chipTonal: {
+    backgroundColor: md3.primaryContainer + '50',
+    height: 28,
   },
-  tagText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-    letterSpacing: 0.3,
+  chipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: md3.onSurfaceVariant,
+    letterSpacing: 0.1,
+  },
+  chipTextTonal: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: md3.onPrimaryContainer,
+    letterSpacing: 0.1,
   },
 });

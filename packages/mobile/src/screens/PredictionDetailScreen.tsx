@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Button, Card, Chip, IconButton } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { predictionsApi } from '../services/api';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, colors, typography, spacing, shape } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type DetailRoute = RouteProp<RootStackParamList, 'PredictionDetail'>;
@@ -71,7 +72,7 @@ export function PredictionDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.pitch.green} />
+        <ActivityIndicator size="large" color={md3.primary} />
       </View>
     );
   }
@@ -79,12 +80,14 @@ export function PredictionDetailScreen() {
   if (error || !data) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>!</Text>
+        <View style={styles.errorIconCircle}>
+          <Text style={styles.errorIcon}>!</Text>
+        </View>
         <Text style={styles.errorTitle}>{t('error.title')}</Text>
         <Text style={styles.errorMessage}>{error || t('error.generic')}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadDetail}>
-          <Text style={styles.retryText}>{t('error.retry')}</Text>
-        </TouchableOpacity>
+        <Button mode="contained" onPress={loadDetail} style={styles.retryButton}>
+          {t('error.retry')}
+        </Button>
       </View>
     );
   }
@@ -96,7 +99,7 @@ export function PredictionDetailScreen() {
   const awayProb = Number(prediction.probabilities.awayWin);
   const confidence = Number(prediction.confidence);
   const confidenceColor =
-    confidence >= 70 ? colors.pitch.green : confidence >= 50 ? colors.gold.primary : colors.alert.red;
+    confidence >= 70 ? md3.primary : confidence >= 50 ? md3.tertiary : md3.error;
 
   const analysis = prediction.prediction as {
     summary?: string;
@@ -111,9 +114,13 @@ export function PredictionDetailScreen() {
   return (
     <ScrollView style={styles.container}>
       {/* Back */}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>‹ {t('auth.close')}</Text>
-      </TouchableOpacity>
+      <IconButton
+        icon="arrow-left"
+        iconColor={md3.primary}
+        size={24}
+        onPress={() => navigation.goBack()}
+        style={styles.backButton}
+      />
 
       {/* Match header */}
       <View style={styles.matchHeader}>
@@ -125,55 +132,55 @@ export function PredictionDetailScreen() {
         {prediction.match.venue && <Text style={styles.venue}>{prediction.match.venue}</Text>}
       </View>
 
-      {/* Probabilities card */}
-      <View style={styles.probCard}>
-        <View style={styles.teamProb}>
-          <Text style={styles.teamName}>{prediction.match.homeTeam}</Text>
-          <Text style={styles.probValue}>{homeProb}%</Text>
-        </View>
-
-        {/* Probability bar */}
-        <View style={styles.probBar}>
-          <View style={[styles.probSegment, styles.homeSegment, { flex: homeProb }]} />
-          <View style={[styles.probSegment, styles.drawSegment, { flex: drawProb }]} />
-          <View style={[styles.probSegment, styles.awaySegment, { flex: awayProb }]} />
-        </View>
-
-        <View style={styles.teamProb}>
-          <Text style={styles.drawLabel}>{t('card.draw')}</Text>
-          <Text style={styles.drawValue}>{drawProb}%</Text>
-        </View>
-        <View style={[styles.teamProb, { marginBottom: 0 }]}>
-          <Text style={styles.teamName}>{prediction.match.awayTeam}</Text>
-          <Text style={styles.probValue}>{awayProb}%</Text>
-        </View>
-      </View>
-
-      {/* Meta badges */}
-      <View style={styles.metaRow}>
-        <View style={[styles.metaBadge, { borderColor: confidenceColor + '50' }]}>
-          <Text style={[styles.metaBadgeText, { color: confidenceColor }]}>
-            {t('card.confidence')}: {confidence}%
-          </Text>
-        </View>
-        {prediction.predictedScore && (
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>{prediction.predictedScore}</Text>
+      {/* Probabilities card — M3 Elevated Card */}
+      <Card mode="elevated" style={styles.probCard}>
+        <Card.Content>
+          <View style={styles.teamProb}>
+            <Text style={styles.teamName}>{prediction.match.homeTeam}</Text>
+            <Text style={styles.probValue}>{homeProb}%</Text>
           </View>
+
+          <View style={styles.probBar}>
+            <View style={[styles.probSegment, styles.homeSegment, { flex: homeProb }]} />
+            <View style={[styles.probSegment, styles.drawSegment, { flex: drawProb }]} />
+            <View style={[styles.probSegment, styles.awaySegment, { flex: awayProb }]} />
+          </View>
+
+          <View style={styles.teamProb}>
+            <Text style={styles.drawLabel}>{t('card.draw')}</Text>
+            <Text style={styles.drawValue}>{drawProb}%</Text>
+          </View>
+          <View style={[styles.teamProb, { marginBottom: 0 }]}>
+            <Text style={styles.teamName}>{prediction.match.awayTeam}</Text>
+            <Text style={styles.probValue}>{awayProb}%</Text>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Meta badges — M3 Chips */}
+      <View style={styles.metaRow}>
+        <Chip
+          mode="flat"
+          compact
+          style={[styles.metaChip, { backgroundColor: confidenceColor + '18' }]}
+          textStyle={[styles.metaChipText, { color: confidenceColor }]}
+        >
+          {t('card.confidence')}: {confidence}%
+        </Chip>
+        {prediction.predictedScore && (
+          <Chip mode="flat" compact style={styles.metaChip} textStyle={styles.metaChipText}>
+            {prediction.predictedScore}
+          </Chip>
         )}
         {prediction.overUnder25 && (
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>
-              {prediction.overUnder25 === 'over' ? t('card.over25') : t('card.under25')}
-            </Text>
-          </View>
+          <Chip mode="flat" compact style={styles.metaChip} textStyle={styles.metaChipText}>
+            {prediction.overUnder25 === 'over' ? t('card.over25') : t('card.under25')}
+          </Chip>
         )}
         {prediction.btts !== undefined && (
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>
-              {prediction.btts ? t('card.bttsYes') : t('card.bttsNo')}
-            </Text>
-          </View>
+          <Chip mode="flat" compact style={styles.metaChip} textStyle={styles.metaChipText}>
+            {prediction.btts ? t('card.bttsYes') : t('card.bttsNo')}
+          </Chip>
         )}
       </View>
 
@@ -247,25 +254,27 @@ export function PredictionDetailScreen() {
         <View style={styles.analysisSection}>
           <Text style={styles.sectionTitle}>{t('card.valueBet')}S</Text>
           {prediction.valueBets.map((vb, i) => (
-            <View key={i} style={styles.valueBetCard}>
-              <View style={styles.valueBetHeader}>
-                <Text style={styles.valueBetType}>{formatBetType(vb.betType)}</Text>
-                <View style={styles.edgeBadge}>
-                  <Text style={styles.edgeText}>+{vb.edge}%</Text>
+            <Card key={i} mode="outlined" style={styles.valueBetCard}>
+              <Card.Content>
+                <View style={styles.valueBetHeader}>
+                  <Text style={styles.valueBetType}>{formatBetType(vb.betType)}</Text>
+                  <View style={styles.edgeBadge}>
+                    <Text style={styles.edgeText}>+{vb.edge}%</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.valueBetDetails}>
-                <Text style={styles.valueBetDetail}>
-                  Odds: {vb.bestOdds} ({vb.bookmaker})
-                </Text>
-                <Text style={styles.valueBetDetail}>
-                  Prob: {vb.ourProbability}%
-                </Text>
-                {vb.kellyStake !== undefined && (
-                  <Text style={styles.valueBetDetail}>Kelly: {vb.kellyStake}%</Text>
-                )}
-              </View>
-            </View>
+                <View style={styles.valueBetDetails}>
+                  <Text style={styles.valueBetDetail}>
+                    Odds: {vb.bestOdds} ({vb.bookmaker})
+                  </Text>
+                  <Text style={styles.valueBetDetail}>
+                    Prob: {vb.ourProbability}%
+                  </Text>
+                  {vb.kellyStake !== undefined && (
+                    <Text style={styles.valueBetDetail}>Kelly: {vb.kellyStake}%</Text>
+                  )}
+                </View>
+              </Card.Content>
+            </Card>
           ))}
         </View>
       )}
@@ -287,26 +296,34 @@ function formatBetType(type: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing['4xl'],
   },
-  errorIcon: {
-    fontSize: 48,
-    color: colors.alert.red,
-    fontWeight: '700',
+  errorIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: md3.errorContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
+  },
+  errorIcon: {
+    fontSize: 28,
+    color: md3.onErrorContainer,
+    fontWeight: '600',
   },
   errorTitle: {
     ...typography.h2,
@@ -318,38 +335,26 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   retryButton: {
-    backgroundColor: colors.pitch.green,
-    paddingHorizontal: spacing['2xl'],
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-  },
-  retryText: {
-    ...typography.button,
-    color: colors.text.inverse,
+    borderRadius: shape.full,
   },
   backButton: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: 60,
-  },
-  backText: {
-    color: colors.pitch.green,
-    fontSize: 16,
-    fontWeight: '600',
+    marginLeft: spacing.sm,
+    marginTop: 48,
   },
   // Match header
   matchHeader: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing['2xl'],
   },
   league: {
     ...typography.overline,
-    color: colors.pitch.green,
+    color: md3.primary,
     marginBottom: spacing.sm,
   },
   kickoff: {
     ...typography.body,
-    color: colors.text.primary,
+    color: md3.onSurface,
     fontWeight: '500',
     marginBottom: spacing.xs,
   },
@@ -359,13 +364,8 @@ const styles = StyleSheet.create({
   // Probability card
   probCard: {
     marginHorizontal: spacing.xl,
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
     marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    ...shadows.card,
+    borderRadius: shape.large,
   },
   teamProb: {
     flexDirection: 'row',
@@ -382,12 +382,12 @@ const styles = StyleSheet.create({
   },
   drawLabel: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
   },
   drawValue: {
     ...typography.bodySmall,
-    color: colors.text.muted,
-    fontWeight: '600',
+    color: md3.outline,
+    fontWeight: '500',
   },
   probBar: {
     flexDirection: 'row',
@@ -402,15 +402,15 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   homeSegment: {
-    backgroundColor: colors.pitch.green,
+    backgroundColor: md3.primary,
   },
   drawSegment: {
-    backgroundColor: colors.text.muted,
+    backgroundColor: md3.outline,
   },
   awaySegment: {
     backgroundColor: colors.data.cyan,
   },
-  // Meta
+  // Meta — M3 Chips
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -418,18 +418,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing['2xl'],
   },
-  metaBadge: {
-    backgroundColor: colors.bg.elevated,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+  metaChip: {
+    backgroundColor: md3.surfaceContainerHighest,
   },
-  metaBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text.secondary,
+  metaChipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: md3.onSurfaceVariant,
+    letterSpacing: 0.1,
   },
   // Analysis
   analysisSection: {
@@ -438,12 +434,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.overline,
-    color: colors.pitch.green,
+    color: md3.primary,
     marginBottom: spacing.md,
   },
   analysisText: {
     ...typography.body,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   factorRow: {
     flexDirection: 'row',
@@ -455,22 +451,20 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.pitch.green,
-    marginTop: 8,
+    backgroundColor: md3.primary,
+    marginTop: 7,
   },
   factorText: {
     ...typography.body,
     flex: 1,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   // Value Bets
   valueBetCard: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.md,
-    padding: spacing.lg,
     marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.gold.muted,
+    borderRadius: shape.medium,
+    borderColor: md3.tertiary + '40',
+    backgroundColor: md3.tertiaryContainer + '30',
   },
   valueBetHeader: {
     flexDirection: 'row',
@@ -482,23 +476,22 @@ const styles = StyleSheet.create({
     ...typography.h3,
   },
   edgeBadge: {
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 1,
-    borderColor: colors.pitch.greenMuted,
+    backgroundColor: md3.primaryContainer,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
+    paddingVertical: 3,
+    borderRadius: shape.small,
   },
   edgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.pitch.green,
+    fontSize: 12,
+    fontWeight: '600',
+    color: md3.onPrimaryContainer,
+    letterSpacing: 0.1,
   },
   valueBetDetails: {
     gap: spacing.xs,
   },
   valueBetDetail: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
   },
 });

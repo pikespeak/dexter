@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { ActivityIndicator, Icon } from 'react-native-paper';
 import { useAuthStore } from '../stores/auth';
 import { useI18n } from '../i18n';
-import { colors, spacing } from '../theme';
+import { md3, colors, spacing, shape } from '../theme';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 
 // Screens
@@ -38,24 +39,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 /**
- * Tab icon — circle with emoji icon, pitch-green active state.
+ * M3 Navigation Bar icon — pill-shaped active indicator.
  */
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   const { t } = useI18n();
 
   const tabConfig: Record<string, { icon: string; labelKey: string }> = {
-    Home: { icon: '⚽', labelKey: 'tab.today' },
-    Matches: { icon: '📅', labelKey: 'tab.matches' },
-    Stats: { icon: '📊', labelKey: 'tab.stats' },
-    Profile: { icon: '👤', labelKey: 'tab.profile' },
+    Home: { icon: 'soccer', labelKey: 'tab.today' },
+    Matches: { icon: 'calendar', labelKey: 'tab.matches' },
+    Stats: { icon: 'chart-bar', labelKey: 'tab.stats' },
+    Profile: { icon: 'account', labelKey: 'tab.profile' },
   };
 
-  const config = tabConfig[label] || { icon: '•', labelKey: label };
+  const config = tabConfig[label] || { icon: 'circle', labelKey: label };
 
   return (
     <View style={tabStyles.iconContainer}>
-      <View style={[tabStyles.iconCircle, focused && tabStyles.iconCircleFocused]}>
-        <Text style={{ fontSize: 16, opacity: focused ? 1 : 0.5 }}>{config.icon}</Text>
+      {/* M3 active indicator pill */}
+      <View style={[tabStyles.indicatorPill, focused && tabStyles.indicatorPillActive]}>
+        <Icon
+          source={config.icon}
+          size={22}
+          color={focused ? md3.onSecondaryContainer : md3.onSurfaceVariant}
+        />
       </View>
       <Text style={[tabStyles.label, focused && tabStyles.labelFocused]}>
         {t(config.labelKey)}
@@ -115,7 +121,7 @@ export function AppNavigator() {
   if (isLoading) {
     return (
       <View style={loadingStyles.container}>
-        <ActivityIndicator size="large" color={colors.pitch.green} />
+        <ActivityIndicator size="large" color={md3.primary} />
       </View>
     );
   }
@@ -130,7 +136,7 @@ export function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.bg.primary },
+          contentStyle: { backgroundColor: md3.surfaceContainerLowest },
           animation: 'slide_from_right',
         }}
       >
@@ -158,44 +164,47 @@ export function AppNavigator() {
 
 const tabStyles = StyleSheet.create({
   tabBar: {
-    backgroundColor: colors.bg.surface,
-    borderTopColor: colors.border.subtle,
-    borderTopWidth: 1,
-    height: 82,
-    paddingBottom: 22,
+    backgroundColor: md3.surfaceContainer,
+    borderTopColor: md3.outlineVariant,
+    borderTopWidth: 0,
+    height: 80,
+    paddingBottom: 16,
     paddingTop: spacing.sm,
+    elevation: 2,
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
+    minWidth: 64,
   },
-  iconCircle: {
-    width: 32,
+  // M3 pill indicator
+  indicatorPill: {
+    width: 64,
     height: 32,
-    borderRadius: 16,
+    borderRadius: shape.large,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconCircleFocused: {
-    backgroundColor: colors.pitch.greenFaint,
+  indicatorPillActive: {
+    backgroundColor: md3.secondaryContainer,
   },
   label: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '500',
-    color: colors.text.muted,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
+    color: md3.onSurfaceVariant,
   },
   labelFocused: {
-    color: colors.pitch.green,
-    fontWeight: '700',
+    color: md3.onSurface,
+    fontWeight: '600',
   },
 });
 
 const loadingStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
   },

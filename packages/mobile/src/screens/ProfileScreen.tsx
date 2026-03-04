@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import {
+  Avatar,
+  Button,
+  Chip,
+  Divider,
+  List,
+  ProgressBar,
+  RadioButton,
+} from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../stores/auth';
 import { useReferralStore } from '../stores/referral';
 import { useI18n, LOCALE_FLAGS, LOCALE_LABELS, type Locale } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, typography, spacing, shape, elevation } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type ProfileNav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,12 +46,11 @@ export function ProfileScreen() {
 
   const planLabel: Record<string, string> = { free: 'Free', pro: 'Pro', premium: 'Premium' };
   const planColor: Record<string, string> = {
-    free: colors.text.muted,
-    pro: colors.pitch.green,
-    premium: colors.gold.primary,
+    free: md3.outline,
+    pro: md3.primary,
+    premium: md3.tertiary,
   };
 
-  // Progress bar width
   const progressPercent = Math.min((invitedCount / goal) * 100, 100);
 
   if (!isAuthenticated) {
@@ -52,23 +60,22 @@ export function ProfileScreen() {
           <Text style={styles.title}>{t('profile.title')}</Text>
         </View>
         <View style={styles.loginPrompt}>
-          <View style={styles.loginIcon}>
-            <Text style={{ fontSize: 48 }}>👤</Text>
-          </View>
+          <Avatar.Icon size={88} icon="account" style={styles.loginIcon} />
           <Text style={styles.loginText}>{t('profile.loginPrompt')}</Text>
-          <TouchableOpacity
-            style={styles.primaryButton}
+          <Button
+            mode="contained"
             onPress={() => navigation.navigate('Login')}
-            activeOpacity={0.8}
+            style={styles.fullWidthButton}
           >
-            <Text style={styles.primaryButtonText}>{t('profile.login')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryButton}
+            {t('profile.login')}
+          </Button>
+          <Button
+            mode="text"
             onPress={() => navigation.navigate('Register')}
+            style={styles.fullWidthButton}
           >
-            <Text style={styles.secondaryButtonText}>{t('profile.register')}</Text>
-          </TouchableOpacity>
+            {t('profile.register')}
+          </Button>
         </View>
       </View>
     );
@@ -83,11 +90,11 @@ export function ProfileScreen() {
       {/* User info */}
       <View style={styles.section}>
         <View style={styles.userInfo}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(user?.displayName || user?.email || '?')[0].toUpperCase()}
-            </Text>
-          </View>
+          <Avatar.Text
+            size={56}
+            label={(user?.displayName || user?.email || '?')[0].toUpperCase()}
+            style={styles.avatar}
+          />
           <View style={{ flex: 1 }}>
             <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
             <Text style={styles.userEmail}>{user?.email}</Text>
@@ -107,28 +114,24 @@ export function ProfileScreen() {
                   : t('referral.subtitle', { count: String(goal) })}
               </Text>
             </View>
-            <View style={styles.referralReward}>
+            <View style={[styles.referralReward, isCompleted && styles.referralRewardCompleted]}>
               <Text style={styles.referralRewardIcon}>{isCompleted ? '🏆' : '🎁'}</Text>
             </View>
           </View>
 
-          {/* Progress bar */}
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-          </View>
+          <ProgressBar
+            progress={progressPercent / 100}
+            color={md3.primary}
+            style={styles.progressBar}
+          />
           <Text style={styles.progressText}>
             {t('referral.progress', { current: String(invitedCount), total: String(goal) })}
           </Text>
 
-          {/* Share CTA */}
           {!isCompleted && (
-            <TouchableOpacity
-              style={styles.shareCta}
-              onPress={handleShare}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.shareCtaText}>{t('referral.shareCta')}</Text>
-            </TouchableOpacity>
+            <Button mode="contained" onPress={handleShare} style={styles.fullWidthButton}>
+              {t('referral.shareCta')}
+            </Button>
           )}
 
           {isCompleted && (
@@ -143,19 +146,21 @@ export function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('profile.subscription')}</Text>
         <View style={styles.planCard}>
-          <View style={[styles.planBadge, { backgroundColor: (planColor[plan] || colors.text.muted) + '20' }]}>
-            <Text style={[styles.planBadgeText, { color: planColor[plan] || colors.text.muted }]}>
-              {planLabel[plan] || 'Free'}
-            </Text>
-          </View>
+          <Chip
+            mode="flat"
+            style={[styles.planBadge, { backgroundColor: (planColor[plan] || md3.outline) + '18' }]}
+            textStyle={[styles.planBadgeText, { color: planColor[plan] || md3.outline }]}
+          >
+            {planLabel[plan] || 'Free'}
+          </Chip>
           {plan === 'free' && (
-            <TouchableOpacity
-              style={styles.upgradeButton}
+            <Button
+              mode="contained-tonal"
               onPress={() => navigation.navigate('Paywall')}
-              activeOpacity={0.8}
+              compact
             >
-              <Text style={styles.upgradeText}>{t('profile.upgradePro')}</Text>
-            </TouchableOpacity>
+              {t('profile.upgradePro')}
+            </Button>
           )}
         </View>
       </View>
@@ -164,58 +169,77 @@ export function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('profile.settings')}</Text>
 
-        <TouchableOpacity style={styles.settingsRow}>
-          <Text style={styles.settingsLabel}>{t('profile.pushNotifications')}</Text>
-          <Text style={styles.settingsValue}>{t('common.on')}</Text>
-        </TouchableOpacity>
+        <List.Item
+          title={t('profile.pushNotifications')}
+          titleStyle={styles.listItemTitle}
+          right={() => <Text style={styles.settingsValue}>{t('common.on')}</Text>}
+        />
+        <Divider style={styles.divider} />
 
-        <TouchableOpacity
-          style={styles.settingsRow}
+        <List.Item
+          title={t('profile.language')}
+          titleStyle={styles.listItemTitle}
+          right={() => (
+            <Text style={styles.settingsValue}>
+              {LOCALE_FLAGS[locale]} {LOCALE_LABELS[locale]}
+            </Text>
+          )}
           onPress={() => setShowLangPicker(!showLangPicker)}
-        >
-          <Text style={styles.settingsLabel}>{t('profile.language')}</Text>
-          <Text style={styles.settingsValue}>
-            {LOCALE_FLAGS[locale]} {LOCALE_LABELS[locale]}
-          </Text>
-        </TouchableOpacity>
+        />
+        <Divider style={styles.divider} />
 
         {showLangPicker && (
           <View style={styles.langPicker}>
             {LOCALES.map((loc) => (
-              <TouchableOpacity
+              <List.Item
                 key={loc}
+                title={`${LOCALE_FLAGS[loc]}  ${LOCALE_LABELS[loc]}`}
+                titleStyle={[styles.langLabel, locale === loc && styles.langLabelActive]}
                 style={[styles.langOption, locale === loc && styles.langOptionActive]}
                 onPress={() => {
                   setLocale(loc);
                   setShowLangPicker(false);
                 }}
-              >
-                <Text style={styles.langFlag}>{LOCALE_FLAGS[loc]}</Text>
-                <Text
-                  style={[styles.langLabel, locale === loc && styles.langLabelActive]}
-                >
-                  {LOCALE_LABELS[loc]}
-                </Text>
-              </TouchableOpacity>
+                right={() => (
+                  <RadioButton
+                    value={loc}
+                    status={locale === loc ? 'checked' : 'unchecked'}
+                    onPress={() => {
+                      setLocale(loc);
+                      setShowLangPicker(false);
+                    }}
+                    color={md3.primary}
+                  />
+                )}
+              />
             ))}
           </View>
         )}
 
-        <TouchableOpacity style={styles.settingsRow}>
-          <Text style={styles.settingsLabel}>{t('profile.privacy')}</Text>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
+        <List.Item
+          title={t('profile.privacy')}
+          titleStyle={styles.listItemTitle}
+          right={() => <List.Icon icon="chevron-right" color={md3.outline} />}
+        />
+        <Divider style={styles.divider} />
 
-        <TouchableOpacity style={styles.settingsRow}>
-          <Text style={styles.settingsLabel}>{t('profile.terms')}</Text>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
+        <List.Item
+          title={t('profile.terms')}
+          titleStyle={styles.listItemTitle}
+          right={() => <List.Icon icon="chevron-right" color={md3.outline} />}
+        />
       </View>
 
       {/* Logout */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>{t('profile.logout')}</Text>
-      </TouchableOpacity>
+      <Button
+        mode="contained"
+        onPress={handleLogout}
+        buttonColor={md3.errorContainer}
+        textColor={md3.onErrorContainer}
+        style={styles.logoutButton}
+      >
+        {t('profile.logout')}
+      </Button>
 
       <Text style={styles.version}>{t('profile.version', { version: '0.1.0' })}</Text>
     </ScrollView>
@@ -225,7 +249,7 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -251,40 +275,25 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.pitch.greenFaint,
-    borderWidth: 2,
-    borderColor: colors.pitch.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.pitch.green,
+    backgroundColor: md3.primaryContainer,
   },
   userName: {
     ...typography.h3,
   },
   userEmail: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
   },
 
   // Referral card
   referralCard: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.large,
     padding: spacing.xl,
-    borderWidth: 1.5,
-    borderColor: colors.border.accent,
-    ...shadows.glow,
+    ...elevation.level1,
   },
   referralCardCompleted: {
-    borderColor: colors.gold.muted,
-    ...shadows.goldGlow,
+    backgroundColor: md3.tertiaryContainer + '30',
   },
   referralTop: {
     flexDirection: 'row',
@@ -298,165 +307,114 @@ const styles = StyleSheet.create({
   },
   referralSub: {
     ...typography.bodySmall,
-    color: colors.text.secondary,
+    color: md3.onSurfaceVariant,
     maxWidth: 220,
   },
   referralReward: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.pitch.greenFaint,
+    backgroundColor: md3.primaryContainer + '40',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  referralRewardCompleted: {
+    backgroundColor: md3.tertiaryContainer,
   },
   referralRewardIcon: {
     fontSize: 22,
   },
   progressBar: {
-    height: 6,
-    backgroundColor: colors.bg.elevated,
-    borderRadius: 3,
-    overflow: 'hidden',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: md3.surfaceContainerHighest,
     marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: 6,
-    backgroundColor: colors.pitch.green,
-    borderRadius: 3,
   },
   progressText: {
     ...typography.caption,
     marginBottom: spacing.lg,
   },
-  shareCta: {
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  shareCtaText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 14,
-  },
   rewardBadge: {
-    backgroundColor: colors.gold.faint,
-    borderWidth: 1,
-    borderColor: colors.gold.muted,
-    borderRadius: radius.md,
+    backgroundColor: md3.tertiaryContainer,
+    borderRadius: shape.full,
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
   rewardBadgeText: {
     ...typography.button,
-    color: colors.gold.primary,
-    fontSize: 14,
+    color: md3.onTertiaryContainer,
   },
 
   // Plan card
   planCard: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.large,
     padding: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+    ...elevation.level1,
   },
   planBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
+    height: 32,
   },
   planBadgeText: {
-    fontWeight: '700',
+    fontWeight: '600',
     fontSize: 14,
+    letterSpacing: 0.1,
   },
-  upgradeButton: {
-    backgroundColor: colors.pitch.green,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  upgradeText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 13,
+
+  // M3 Buttons
+  fullWidthButton: {
+    borderRadius: shape.full,
+    width: '100%',
   },
 
   // Settings
-  settingsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
-  },
-  settingsLabel: {
+  listItemTitle: {
     ...typography.body,
-    color: colors.text.primary,
+    color: md3.onSurface,
     fontSize: 16,
   },
   settingsValue: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
+    alignSelf: 'center',
   },
-  chevron: {
-    fontSize: 20,
-    color: colors.text.muted,
-    fontWeight: '300',
+  divider: {
+    backgroundColor: md3.outlineVariant + '60',
   },
 
   // Language picker
   langPicker: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.md,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.medium,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
     overflow: 'hidden',
   },
   langOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
+    borderBottomColor: md3.outlineVariant + '40',
   },
   langOptionActive: {
-    backgroundColor: colors.pitch.greenFaint,
-  },
-  langFlag: {
-    fontSize: 22,
+    backgroundColor: md3.secondaryContainer + '60',
   },
   langLabel: {
     ...typography.body,
-    color: colors.text.secondary,
+    color: md3.onSurfaceVariant,
     fontSize: 15,
   },
   langLabelActive: {
-    color: colors.pitch.green,
-    fontWeight: '600',
+    color: md3.onSecondaryContainer,
+    fontWeight: '500',
   },
 
   // Logout
   logoutButton: {
     marginHorizontal: spacing.xl,
     marginTop: spacing.sm,
-    padding: 14,
-    borderRadius: radius.lg,
-    backgroundColor: colors.alert.redFaint,
-    borderWidth: 1,
-    borderColor: colors.alert.redMuted,
-    alignItems: 'center',
-  },
-  logoutText: {
-    fontSize: 16,
-    color: colors.alert.red,
-    fontWeight: '600',
+    borderRadius: shape.full,
   },
 
   // Login prompt (unauthenticated)
@@ -465,46 +423,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing['4xl'],
+    gap: spacing.md,
   },
   loginIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.bg.card,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing['2xl'],
+    backgroundColor: md3.surfaceContainerHigh,
+    marginBottom: spacing.lg,
   },
   loginText: {
     ...typography.body,
     textAlign: 'center',
-    marginBottom: spacing['2xl'],
+    marginBottom: spacing.lg,
   },
-  primaryButton: {
-    backgroundColor: colors.pitch.green,
-    paddingHorizontal: spacing['4xl'],
-    paddingVertical: 14,
-    borderRadius: radius.md,
-    marginBottom: spacing.md,
-    width: '100%',
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    ...typography.button,
-    color: colors.text.inverse,
-  },
-  secondaryButton: {
-    paddingHorizontal: spacing['4xl'],
-    paddingVertical: 14,
-    width: '100%',
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    ...typography.button,
-    color: colors.pitch.green,
-  },
+
   version: {
     ...typography.caption,
     textAlign: 'center',

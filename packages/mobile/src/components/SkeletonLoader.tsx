@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
-import { colors, spacing, radius } from '../theme';
+import { md3, spacing, shape, elevation } from '../theme';
 
 interface SkeletonLoaderProps {
   width?: number | string;
@@ -10,12 +10,12 @@ interface SkeletonLoaderProps {
 }
 
 /**
- * Skeleton loading placeholder — Stadium Night shimmer.
+ * Skeleton loading placeholder — M3 shimmer.
  */
 export function SkeletonLoader({
   width = '100%',
   height = 20,
-  borderRadius: br = 8,
+  borderRadius: br = shape.small,
   style,
 }: SkeletonLoaderProps) {
   const opacity = useRef(new Animated.Value(0.3)).current;
@@ -24,7 +24,7 @@ export function SkeletonLoader({
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.7,
+          toValue: 0.6,
           duration: 800,
           useNativeDriver: true,
         }),
@@ -51,14 +51,14 @@ export function SkeletonLoader({
 }
 
 /**
- * Skeleton for a prediction card — matches Stadium Night card layout.
+ * Skeleton for a prediction card — matches M3 card layout.
  */
 export function PredictionCardSkeleton() {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <SkeletonLoader width={100} height={14} />
-        <SkeletonLoader width={40} height={20} borderRadius={10} />
+        <SkeletonLoader width={40} height={20} borderRadius={shape.small} />
       </View>
       <View style={styles.cardTeams}>
         <View style={{ flex: 1 }}>
@@ -74,12 +74,11 @@ export function PredictionCardSkeleton() {
           <SkeletonLoader width={60} height={28} style={{ marginTop: 6 }} />
         </View>
       </View>
-      {/* Probability bar skeleton */}
       <SkeletonLoader width="100%" height={4} borderRadius={2} style={{ marginBottom: spacing.md }} />
       <View style={styles.cardTags}>
-        <SkeletonLoader width={80} height={24} borderRadius={6} />
-        <SkeletonLoader width={70} height={24} borderRadius={6} />
-        <SkeletonLoader width={60} height={24} borderRadius={6} />
+        <SkeletonLoader width={80} height={24} borderRadius={shape.small} />
+        <SkeletonLoader width={70} height={24} borderRadius={shape.small} />
+        <SkeletonLoader width={60} height={24} borderRadius={shape.small} />
       </View>
     </View>
   );
@@ -87,15 +86,14 @@ export function PredictionCardSkeleton() {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: colors.bg.elevated,
+    backgroundColor: md3.surfaceContainerHighest,
   },
   card: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.surfaceContainerHigh,
+    borderRadius: shape.large,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+    ...elevation.level1,
   },
   cardHeader: {
     flexDirection: 'row',

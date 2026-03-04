@@ -1,5 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
+import { PaperProvider } from 'react-native-paper';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { piksPeakTheme } from './src/theme/paper';
 
 /**
  * App entry point.
@@ -11,9 +13,9 @@ import { AppNavigator } from './src/navigation/AppNavigator';
  */
 export default function App() {
   return (
-    <>
+    <PaperProvider theme={piksPeakTheme}>
       <StatusBar style="light" />
       <AppNavigator />
-    </>
+    </PaperProvider>
   );
 }

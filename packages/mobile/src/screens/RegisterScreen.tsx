@@ -2,19 +2,17 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { TextInput, Button, HelperText, IconButton } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../stores/auth';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius } from '../theme';
+import { md3, typography, spacing, shape } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type RegisterNav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -66,9 +64,13 @@ export function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.closeText}>{t('auth.close')}</Text>
-        </TouchableOpacity>
+        <IconButton
+          icon="close"
+          iconColor={md3.outline}
+          size={24}
+          onPress={() => navigation.goBack()}
+          style={styles.closeButton}
+        />
 
         <View style={styles.headerSpace} />
 
@@ -81,79 +83,80 @@ export function RegisterScreen() {
           </View>
         ) : null}
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t('auth.name')}</Text>
-          <TextInput
-            style={styles.input}
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-            placeholder={t('auth.namePlaceholder')}
-            placeholderTextColor={colors.text.muted}
-          />
-        </View>
+        <TextInput
+          mode="outlined"
+          label={t('auth.name')}
+          value={displayName}
+          onChangeText={setDisplayName}
+          autoCapitalize="words"
+          style={styles.input}
+          outlineColor={md3.outlineVariant}
+          activeOutlineColor={md3.primary}
+          textColor={md3.onSurface}
+        />
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t('auth.email')}</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder={t('auth.emailPlaceholder')}
-            placeholderTextColor={colors.text.muted}
-          />
-        </View>
+        <TextInput
+          mode="outlined"
+          label={t('auth.email')}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          style={styles.input}
+          outlineColor={md3.outlineVariant}
+          activeOutlineColor={md3.primary}
+          textColor={md3.onSurface}
+        />
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t('auth.password')}</Text>
+        <View>
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder={t('auth.passwordPlaceholder')}
-            placeholderTextColor={colors.text.muted}
-          />
-          <Text style={styles.hint}>{t('auth.passwordMinLength')}</Text>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
-          <TextInput
             style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            placeholder={t('auth.confirmPasswordPlaceholder')}
-            placeholderTextColor={colors.text.muted}
+            outlineColor={md3.outlineVariant}
+            activeOutlineColor={md3.primary}
+            textColor={md3.onSurface}
           />
+          <HelperText type="info" style={styles.hint}>
+            {t('auth.passwordMinLength')}
+          </HelperText>
         </View>
 
-        <TouchableOpacity
-          style={[styles.registerButton, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.text.inverse} />
-          ) : (
-            <Text style={styles.registerText}>{t('auth.register')}</Text>
-          )}
-        </TouchableOpacity>
+        <TextInput
+          mode="outlined"
+          label={t('auth.confirmPassword')}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          style={styles.input}
+          outlineColor={md3.outlineVariant}
+          activeOutlineColor={md3.primary}
+          textColor={md3.onSurface}
+        />
 
-        <TouchableOpacity
-          style={styles.switchButton}
-          onPress={() => navigation.replace('Login')}
+        <Button
+          mode="contained"
+          onPress={handleRegister}
+          loading={loading}
+          disabled={loading}
+          style={styles.registerButton}
+          contentStyle={styles.registerButtonContent}
         >
-          <Text style={styles.switchText}>
-            {t('auth.hasAccount')}{' '}
-            <Text style={styles.switchLink}>{t('auth.loginNow')}</Text>
-          </Text>
-        </TouchableOpacity>
+          {t('auth.register')}
+        </Button>
+
+        <Button
+          mode="text"
+          onPress={() => navigation.replace('Login')}
+          style={styles.switchButton}
+          textColor={md3.onSurfaceVariant}
+        >
+          {t('auth.hasAccount')}{' '}{t('auth.loginNow')}
+        </Button>
 
         <View style={{ height: spacing['4xl'] }} />
       </ScrollView>
@@ -164,7 +167,7 @@ export function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   inner: {
     padding: spacing['2xl'],
@@ -175,15 +178,9 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    top: 60,
-    right: spacing['2xl'],
+    top: 52,
+    right: spacing.lg,
     zIndex: 1,
-    padding: spacing.sm,
-  },
-  closeText: {
-    ...typography.bodySmall,
-    color: colors.text.muted,
-    fontWeight: '600',
   },
   title: {
     ...typography.h1,
@@ -194,66 +191,33 @@ const styles = StyleSheet.create({
     marginBottom: spacing['2xl'],
   },
   errorBanner: {
-    backgroundColor: colors.alert.redFaint,
-    borderWidth: 1,
-    borderColor: colors.alert.redMuted,
+    backgroundColor: md3.errorContainer,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: shape.medium,
     marginBottom: spacing.lg,
   },
   errorText: {
-    color: colors.alert.red,
-    fontSize: 13,
+    color: md3.onErrorContainer,
+    fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
-  },
-  inputGroup: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    ...typography.overline,
-    marginBottom: spacing.sm,
+    letterSpacing: 0.4,
   },
   input: {
-    backgroundColor: colors.bg.input,
-    borderRadius: radius.md,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    fontSize: 16,
-    color: colors.text.primary,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
+    marginBottom: spacing.sm,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   hint: {
-    ...typography.caption,
-    marginTop: spacing.xs,
-    paddingLeft: spacing.xs,
+    marginBottom: spacing.xs,
   },
   registerButton: {
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.md,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
+    borderRadius: shape.full,
     marginTop: spacing.sm,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  registerText: {
-    ...typography.button,
-    color: colors.text.inverse,
-    fontSize: 17,
+  registerButtonContent: {
+    paddingVertical: 4,
   },
   switchButton: {
-    alignItems: 'center',
-    marginTop: spacing['2xl'],
-  },
-  switchText: {
-    ...typography.bodySmall,
-    color: colors.text.secondary,
-  },
-  switchLink: {
-    color: colors.pitch.green,
-    fontWeight: '600',
+    marginTop: spacing.lg,
   },
 });

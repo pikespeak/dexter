@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePredictionsStore } from '../stores/predictions';
@@ -8,15 +9,11 @@ import { PredictionCard } from '../components/PredictionCard';
 import { PredictionCardSkeleton } from '../components/SkeletonLoader';
 import { ErrorState } from '../components/ErrorState';
 import { useI18n } from '../i18n';
-import { colors, typography, spacing, radius, shadows } from '../theme';
+import { md3, typography, spacing, shape } from '../theme';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type HomeNav = NativeStackNavigationProp<RootStackParamList>;
 
-/**
- * Home Screen — Today's Predictions Feed
- * Stadium Night aesthetic with conversion-optimized free user banner.
- */
 export function HomeScreen() {
   const navigation = useNavigation<HomeNav>();
   const { t } = useI18n();
@@ -70,7 +67,6 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>{t('home.title')}</Text>
         <Text style={styles.subtitle}>{dateStr}</Text>
@@ -83,22 +79,20 @@ export function HomeScreen() {
           <RefreshControl
             refreshing={isLoading}
             onRefresh={handleRefresh}
-            tintColor={colors.pitch.green}
+            tintColor={md3.primary}
           />
         }
       >
         {error && <ErrorState message={error} onRetry={handleRefresh} />}
 
-        {/* Conversion banner for free users */}
+        {/* M3 Banner for free users */}
         {!isPro && !error && (
           <View style={styles.freeBanner}>
-            {/* Accent bar */}
-            <View style={styles.bannerAccent} />
             <View style={styles.bannerContent}>
               <Text style={styles.bannerOverline}>{t('home.freePreview')}</Text>
               <Text style={styles.bannerText}>{t('home.freeText')}</Text>
-              <TouchableOpacity
-                style={styles.bannerCta}
+              <Button
+                mode="contained"
                 onPress={() => {
                   if (!isAuthenticated) {
                     navigation.navigate('Register');
@@ -106,19 +100,16 @@ export function HomeScreen() {
                     navigation.navigate('Paywall');
                   }
                 }}
-                activeOpacity={0.8}
+                style={styles.bannerCta}
               >
-                <Text style={styles.bannerCtaText}>
-                  {isAuthenticated
-                    ? t('home.upgradeProCta', { price: '4.99€' })
-                    : t('home.registerCta')}
-                </Text>
-              </TouchableOpacity>
+                {isAuthenticated
+                  ? t('home.upgradeProCta', { price: '4.99€' })
+                  : t('home.registerCta')}
+              </Button>
             </View>
           </View>
         )}
 
-        {/* Loading skeletons */}
         {isLoading && predictions.length === 0 && (
           <>
             <PredictionCardSkeleton />
@@ -127,7 +118,6 @@ export function HomeScreen() {
           </>
         )}
 
-        {/* Prediction cards */}
         {predictions.map((prediction) => (
           <PredictionCard
             key={prediction.id}
@@ -136,7 +126,6 @@ export function HomeScreen() {
           />
         ))}
 
-        {/* Empty state */}
         {predictions.length === 0 && !isLoading && !error && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>⚽</Text>
@@ -154,7 +143,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg.primary,
+    backgroundColor: md3.surfaceContainerLowest,
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -166,7 +155,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.bodySmall,
-    color: colors.text.muted,
+    color: md3.outline,
     marginTop: spacing.xs,
   },
   feed: {
@@ -175,41 +164,28 @@ const styles = StyleSheet.create({
   feedContent: {
     paddingHorizontal: spacing.lg,
   },
-  // Conversion banner
+  // M3 filled tonal banner
   freeBanner: {
-    backgroundColor: colors.bg.card,
-    borderRadius: radius.lg,
+    backgroundColor: md3.primaryContainer + '40',
+    borderRadius: shape.large,
     marginBottom: spacing.lg,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border.accent,
-    ...shadows.glow,
-  },
-  bannerAccent: {
-    height: 3,
-    backgroundColor: colors.pitch.green,
   },
   bannerContent: {
     padding: spacing.xl,
   },
   bannerOverline: {
     ...typography.overline,
-    color: colors.pitch.green,
+    color: md3.onPrimaryContainer,
     marginBottom: spacing.sm,
   },
   bannerText: {
     ...typography.body,
+    color: md3.onSurfaceVariant,
     marginBottom: spacing.lg,
   },
   bannerCta: {
-    backgroundColor: colors.pitch.green,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  bannerCtaText: {
-    ...typography.button,
-    color: colors.text.inverse,
+    borderRadius: shape.full,
   },
   // Empty state
   emptyState: {
