@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Platform } from 'react-native';
-import { authApi } from '../services/api';
+import { authApi, MOCK_MODE } from '../services/api';
+import { mockUser } from '../services/mock-data';
 
 // SecureStore wrapper — falls back to localStorage on web
 const storage = {
@@ -104,10 +105,32 @@ export const useAuthStore = create<AuthState>((set) => ({
           await storage.setItem('auth_token', result.token);
           set({ isAuthenticated: true, isLoading: false, hasCompletedOnboarding, favoriteLeague: favLeague });
         } catch {
-          // Token refresh failed — clear and continue as guest
-          try { await storage.deleteItem('auth_token'); } catch {}
-          set({ isAuthenticated: false, isLoading: false, hasCompletedOnboarding, favoriteLeague: favLeague });
+          if (MOCK_MODE) {
+            // In mock mode, auto-authenticate as Pro user
+            set({
+              user: { id: mockUser.id, email: mockUser.email, displayName: mockUser.displayName },
+              isAuthenticated: true,
+              isLoading: false,
+              plan: 'pro',
+              hasCompletedOnboarding,
+              favoriteLeague: favLeague,
+            });
+          } else {
+            // Token refresh failed — clear and continue as guest
+            try { await storage.deleteItem('auth_token'); } catch {}
+            set({ isAuthenticated: false, isLoading: false, hasCompletedOnboarding, favoriteLeague: favLeague });
+          }
         }
+      } else if (MOCK_MODE) {
+        // No token but mock mode — auto-authenticate as Pro user
+        set({
+          user: { id: mockUser.id, email: mockUser.email, displayName: mockUser.displayName },
+          isAuthenticated: true,
+          isLoading: false,
+          plan: 'pro',
+          hasCompletedOnboarding,
+          favoriteLeague: favLeague,
+        });
       } else {
         set({ isLoading: false, hasCompletedOnboarding, favoriteLeague: favLeague });
       }

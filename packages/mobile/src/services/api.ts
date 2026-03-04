@@ -1,9 +1,31 @@
 import * as SecureStore from 'expo-secure-store';
+import {
+  mockAuthResponse,
+  mockTokens,
+  mockPredictionsToday,
+  mockFreePrediction,
+  getMockPredictionDetail,
+  mockUpcomingMatches,
+  mockPerformance,
+  mockSubscriptionStatus,
+  mockSubscriptionPlans,
+  mockPushRegister,
+  mockPushUnregister,
+} from './mock-data';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 const REQUEST_TIMEOUT = 15_000; // 15 seconds
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 1000;
+
+// Mock mode: active when no API URL is explicitly configured
+const MOCK_MODE = !process.env.EXPO_PUBLIC_API_URL;
+
+/** Simulate network delay in mock mode */
+function mockDelay(): Promise<void> {
+  const ms = 300 + Math.random() * 200;
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -154,95 +176,172 @@ async function apiCall<T>(endpoint: string, options: ApiOptions = {}): Promise<T
 
 // Auth
 export const authApi = {
-  register: (email: string, password: string, displayName?: string) =>
-    apiCall<{ user: { id: string; email: string; displayName?: string }; token: string; refreshToken: string }>(
+  register: async (email: string, password: string, displayName?: string) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return {
+        user: { id: 'mock-1', email, displayName: displayName || email.split('@')[0] },
+        ...mockTokens,
+      };
+    }
+    return apiCall<{ user: { id: string; email: string; displayName?: string }; token: string; refreshToken: string }>(
       '/auth/register',
       {
         method: 'POST',
         body: { email, password, displayName },
         requiresAuth: false,
       }
-    ),
+    );
+  },
 
-  login: (email: string, password: string) =>
-    apiCall<{ user: { id: string; email: string; displayName?: string; plan?: string }; token: string; refreshToken: string }>(
+  login: async (email: string, password: string) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return { ...mockAuthResponse, user: { ...mockAuthResponse.user, email } };
+    }
+    return apiCall<{ user: { id: string; email: string; displayName?: string; plan?: string }; token: string; refreshToken: string }>(
       '/auth/login',
       {
         method: 'POST',
         body: { email, password },
         requiresAuth: false,
       }
-    ),
+    );
+  },
 
-  refresh: () =>
-    apiCall<{ token: string; refreshToken: string }>('/auth/refresh', {
+  refresh: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockTokens;
+    }
+    return apiCall<{ token: string; refreshToken: string }>('/auth/refresh', {
       method: 'POST',
-    }),
+    });
+  },
 };
 
 // Predictions
 export const predictionsApi = {
-  getToday: () =>
-    apiCall<{ predictions: Array<Record<string, unknown>>; date: string }>('/predictions/today'),
+  getToday: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockPredictionsToday;
+    }
+    return apiCall<{ predictions: Array<Record<string, unknown>>; date: string }>('/predictions/today');
+  },
 
-  getFree: () =>
-    apiCall<{ prediction: Record<string, unknown> | null; upgradeMessage?: string }>(
+  getFree: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockFreePrediction;
+    }
+    return apiCall<{ prediction: Record<string, unknown> | null; upgradeMessage?: string }>(
       '/predictions/free',
       { requiresAuth: false }
-    ),
+    );
+  },
 
-  getByMatch: (matchId: string) =>
-    apiCall<{ prediction: Record<string, unknown> }>(`/predictions/${matchId}`),
+  getByMatch: async (matchId: string) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return getMockPredictionDetail(matchId);
+    }
+    return apiCall<{ prediction: Record<string, unknown> }>(`/predictions/${matchId}`);
+  },
 
-  getHistory: (limit = 20, offset = 0) =>
-    apiCall<{ history: Array<Record<string, unknown>> }>(
+  getHistory: async (limit = 20, offset = 0) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return { history: mockPredictionsToday.predictions.slice(0, limit) };
+    }
+    return apiCall<{ history: Array<Record<string, unknown>> }>(
       `/predictions/history?limit=${limit}&offset=${offset}`
-    ),
+    );
+  },
 };
 
 // Matches
 export const matchesApi = {
-  getUpcoming: (limit = 20) =>
-    apiCall<{ matches: Array<Record<string, unknown>> }>(`/matches/upcoming?limit=${limit}`, {
+  getUpcoming: async (limit = 20) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return { matches: mockUpcomingMatches.matches.slice(0, limit) };
+    }
+    return apiCall<{ matches: Array<Record<string, unknown>> }>(`/matches/upcoming?limit=${limit}`, {
       requiresAuth: false,
-    }),
+    });
+  },
 
-  getById: (id: string) =>
-    apiCall<{ match: Record<string, unknown> }>(`/matches/${id}`, {
+  getById: async (id: string) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      const match = mockUpcomingMatches.matches.find((m) => m.id === id) ?? mockUpcomingMatches.matches[0];
+      return { match };
+    }
+    return apiCall<{ match: Record<string, unknown> }>(`/matches/${id}`, {
       requiresAuth: false,
-    }),
+    });
+  },
 };
 
 // Subscriptions
 export const subscriptionsApi = {
-  getStatus: () =>
-    apiCall<{ plan: string; status: string; features: string[] }>('/subscriptions/status'),
+  getStatus: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockSubscriptionStatus;
+    }
+    return apiCall<{ plan: string; status: string; features: string[] }>('/subscriptions/status');
+  },
 
-  getPlans: () =>
-    apiCall<{ plans: Array<Record<string, unknown>> }>('/subscriptions/plans', {
+  getPlans: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockSubscriptionPlans;
+    }
+    return apiCall<{ plans: Array<Record<string, unknown>> }>('/subscriptions/plans', {
       requiresAuth: false,
-    }),
+    });
+  },
 };
 
 // Stats
 export const statsApi = {
-  getPerformance: () =>
-    apiCall<{ performance: Record<string, unknown> }>('/stats/performance', {
+  getPerformance: async () => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockPerformance;
+    }
+    return apiCall<{ performance: Record<string, unknown> }>('/stats/performance', {
       requiresAuth: false,
-    }),
+    });
+  },
 };
 
 // Push notifications
 export const pushApi = {
-  registerToken: (token: string, platform: 'ios' | 'android') =>
-    apiCall<{ registered: boolean }>('/push/register', {
+  registerToken: async (token: string, platform: 'ios' | 'android') => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockPushRegister;
+    }
+    return apiCall<{ registered: boolean }>('/push/register', {
       method: 'POST',
       body: { token, platform },
-    }),
+    });
+  },
 
-  unregisterToken: (token: string) =>
-    apiCall<{ unregistered: boolean }>('/push/unregister', {
+  unregisterToken: async (token: string) => {
+    if (MOCK_MODE) {
+      await mockDelay();
+      return mockPushUnregister;
+    }
+    return apiCall<{ unregistered: boolean }>('/push/unregister', {
       method: 'POST',
       body: { token },
-    }),
+    });
+  },
 };
+
+/** Whether mock mode is currently active */
+export { MOCK_MODE };
