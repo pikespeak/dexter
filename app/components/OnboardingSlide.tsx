@@ -1,5 +1,6 @@
 import { Text, StyleSheet } from "react-native";
 import Animated, { FadeInRight } from "react-native-reanimated";
+import { colors, fonts, spacing } from "../lib/theme";
 
 interface Props {
   icon: string;
@@ -18,8 +19,8 @@ export default function OnboardingSlide({ icon, title, description }: Props) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
-  icon: { fontSize: 72, marginBottom: 32 },
-  title: { fontSize: 28, fontWeight: "bold", color: "#fff", textAlign: "center", marginBottom: 16 },
-  desc: { fontSize: 18, color: "#bfdbfe", textAlign: "center", lineHeight: 28 },
+  container: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xxxl },
+  icon: { fontSize: 48, color: colors.accent, marginBottom: spacing.xxl },
+  title: { fontSize: 28, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: spacing.lg },
+  desc: { fontSize: 16, color: colors.textSecondary, textAlign: "center", lineHeight: 26 },
 });

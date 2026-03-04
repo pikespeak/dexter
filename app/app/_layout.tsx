@@ -3,15 +3,21 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useAppStore } from "../lib/store";
+import { colors } from "../lib/theme";
+import { useConnectionMonitor } from "../hooks/useConnectionMonitor";
+import ErrorBoundary from "../components/ErrorBoundary";
+import ConnectionBanner from "../components/ConnectionBanner";
 import "../i18n";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function RootLayout() {
+function RootLayoutInner() {
   const router = useRouter();
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
   const language = useAppStore((s) => s.language);
+
+  useConnectionMonitor();
 
   useEffect(() => {
     if (hasHydrated) {
@@ -30,29 +36,55 @@ export default function RootLayout() {
 
   if (!hasHydrated) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#ffffff" />
+      <View style={s.loading}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="ticker/[symbol]"
-        options={{ headerShown: true, headerBackTitle: "Back" }}
-      />
-    </Stack>
+    <>
+      <ConnectionBanner />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="ticker/[symbol]"
+          options={{
+            headerShown: true,
+            headerBackTitle: "Back",
+            headerStyle: { backgroundColor: colors.bg },
+            headerTintColor: colors.accent,
+            headerTitleStyle: {
+              color: colors.textPrimary,
+              fontWeight: "700",
+              letterSpacing: 1,
+            },
+          }}
+        />
+      </Stack>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
+export default function RootLayout() {
+  return (
+    <ErrorBoundary>
+      <RootLayoutInner />
+    </ErrorBoundary>
+  );
+}
+
+const s = StyleSheet.create({
   loading: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1e3a5f",
+    backgroundColor: colors.bg,
   },
 });

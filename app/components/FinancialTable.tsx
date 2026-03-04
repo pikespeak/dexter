@@ -1,4 +1,5 @@
 import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { colors, fonts, spacing } from "../lib/theme";
 
 interface Props {
   data: Record<string, string | number | null>[];
@@ -19,13 +20,13 @@ export default function FinancialTable({ data, columns }: Props) {
   if (data.length === 0) {
     return (
       <View style={s.empty}>
-        <Text style={s.emptyText}>No data available</Text>
+        <Text style={s.emptyText}>NO DATA AVAILABLE</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
       <View>
         <View style={s.headerRow}>
           {columns.map((col) => (
@@ -45,12 +46,12 @@ export default function FinancialTable({ data, columns }: Props) {
 }
 
 const s = StyleSheet.create({
-  empty: { padding: 16 },
-  emptyText: { color: "#9ca3af", textAlign: "center" },
-  headerRow: { flexDirection: "row", backgroundColor: "#f3f4f6", paddingVertical: 8, paddingHorizontal: 12, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  headerCell: { fontSize: 12, fontWeight: "bold", color: "#6b7280", width: 112, textAlign: "right" },
-  row: { flexDirection: "row", paddingVertical: 8, paddingHorizontal: 12 },
-  rowEven: { backgroundColor: "#fff" },
-  rowOdd: { backgroundColor: "#f9fafb" },
-  cell: { fontSize: 14, color: "#374151", width: 112, textAlign: "right" },
+  empty: { padding: spacing.xl },
+  emptyText: { color: colors.textMuted, textAlign: "center", fontFamily: fonts.mono, fontSize: 11, letterSpacing: 2 },
+  headerRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.glassBorder, paddingVertical: 10 },
+  headerCell: { fontSize: 10, fontFamily: fonts.mono, fontWeight: "700", color: colors.textMuted, width: 110, textAlign: "right", letterSpacing: 1 },
+  row: { flexDirection: "row", paddingVertical: 10 },
+  rowEven: { backgroundColor: "transparent" },
+  rowOdd: { backgroundColor: colors.glassHighlight },
+  cell: { fontSize: 13, fontFamily: fonts.mono, color: colors.textPrimary, width: 110, textAlign: "right" },
 });

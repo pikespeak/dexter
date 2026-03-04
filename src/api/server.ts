@@ -13,6 +13,7 @@ import { filingsRoutes } from './routes/filings.js';
 import { companyRoutes } from './routes/company.js';
 import { agentRoutes } from './routes/agent.js';
 import { healthRoutes } from './routes/health.js';
+import { searchRoutes } from './routes/search.js';
 import { registerOpenApi } from './openapi.js';
 
 export const app = new Hono().basePath('/api/v1');
@@ -60,6 +61,7 @@ app.route('/metrics', metricsRoutes);
 app.route('/filings', filingsRoutes);
 app.route('/company', companyRoutes);
 app.route('/agent', agentRoutes);
+app.route('/search', searchRoutes);
 
 // OpenAPI / Swagger UI
 registerOpenApi(app);

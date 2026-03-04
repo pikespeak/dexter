@@ -11,6 +11,8 @@
     "slide2_desc": "Preise, Finanzen, Metriken — alles auf einen Blick. Immer aktuell.",
     "slide3_title": "KI Agent",
     "slide3_desc": "Stelle Fragen in natürlicher Sprache. Dexter recherchiert und antwortet für dich.",
+    "slide4_title": "Mit Server verbinden",
+    "slide4_desc": "Gib deine Server-URL und deinen API-Schlüssel ein, um zu starten.",
     "skip": "Überspringen",
     "next": "Weiter",
     "get_started": "Los geht's"
@@ -21,7 +23,11 @@
     "recent": "Letzte Suchen",
     "no_watchlist": "Noch keine Ticker in der Watchlist",
     "no_results": "Keine Ergebnisse gefunden",
-    "clear_recent": "Löschen"
+    "clear_recent": "Löschen",
+    "autocomplete": "Tippe um Ticker zu suchen...",
+    "searching": "Suche läuft",
+    "crypto": "Krypto",
+    "add_first_stock": "Suche oben nach deiner ersten Aktie"
   },
   "ticker": {
     "price_chart": "Kursverlauf",
@@ -41,14 +47,22 @@
     "dividend_yield": "Div. Rendite",
     "price_to_book": "KBV",
     "price_to_sales": "KUV",
-    "no_data": "Keine Daten verfügbar"
+    "no_data": "Keine Daten verfügbar",
+    "estimates": "Analystenschätzungen",
+    "segments": "Umsatzsegmente",
+    "filing_details": "Filing Details",
+    "section_error": "Dieser Abschnitt konnte nicht geladen werden"
   },
   "agent": {
     "placeholder": "Frag mich alles über Aktien...",
     "send": "Senden",
     "thinking": "Denke nach...",
     "welcome": "Frag mich alles über Aktien, Finanzkennzahlen oder Marktdaten.",
-    "error": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+    "error": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
+    "clear_chat": "Chat löschen",
+    "retry": "Erneut versuchen",
+    "tool_calling": "Tool wird aufgerufen...",
+    "suggestions": "Probiere es mit"
   },
   "settings": {
     "title": "Einstellungen",
@@ -65,6 +79,18 @@
     "app_version": "App Version",
     "english": "Englisch",
     "german": "Deutsch"
+  },
+  "connection": {
+    "offline": "Keine Verbindung",
+    "online": "Verbunden",
+    "reconnecting": "Verbindung wird hergestellt..."
+  },
+  "errors": {
+    "timeout": "Zeitüberschreitung. Bitte erneut versuchen.",
+    "rate_limited": "Zu viele Anfragen. Bitte kurz warten.",
+    "network": "Netzwerkfehler. Prüfe deine Verbindung.",
+    "not_found": "Nicht gefunden.",
+    "server_error": "Serverfehler. Bitte später erneut versuchen."
   },
   "common": {
     "loading": "Laden...",

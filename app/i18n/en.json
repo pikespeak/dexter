@@ -11,6 +11,8 @@
     "slide2_desc": "Prices, financials, metrics — all at a glance. Always up to date.",
     "slide3_title": "AI Agent",
     "slide3_desc": "Ask questions in natural language. Dexter researches and answers for you.",
+    "slide4_title": "Connect to Server",
+    "slide4_desc": "Enter your server URL and API key to get started.",
     "skip": "Skip",
     "next": "Next",
     "get_started": "Get Started"
@@ -21,7 +23,11 @@
     "recent": "Recent Searches",
     "no_watchlist": "No tickers in watchlist yet",
     "no_results": "No results found",
-    "clear_recent": "Clear"
+    "clear_recent": "Clear",
+    "autocomplete": "Type to search tickers...",
+    "searching": "Searching",
+    "crypto": "Crypto",
+    "add_first_stock": "Search for your first stock above"
   },
   "ticker": {
     "price_chart": "Price Chart",
@@ -41,14 +47,22 @@
     "dividend_yield": "Div. Yield",
     "price_to_book": "P/B",
     "price_to_sales": "P/S",
-    "no_data": "No data available"
+    "no_data": "No data available",
+    "estimates": "Analyst Estimates",
+    "segments": "Revenue Segments",
+    "filing_details": "Filing Details",
+    "section_error": "Failed to load this section"
   },
   "agent": {
     "placeholder": "Ask anything about stocks...",
     "send": "Send",
     "thinking": "Thinking...",
     "welcome": "Ask me anything about stocks, financials, or market data.",
-    "error": "An error occurred. Please try again."
+    "error": "An error occurred. Please try again.",
+    "clear_chat": "Clear Chat",
+    "retry": "Retry",
+    "tool_calling": "Calling tool...",
+    "suggestions": "Try asking"
   },
   "settings": {
     "title": "Settings",
@@ -65,6 +79,18 @@
     "app_version": "App Version",
     "english": "English",
     "german": "German"
+  },
+  "connection": {
+    "offline": "No Connection",
+    "online": "Connected",
+    "reconnecting": "Reconnecting..."
+  },
+  "errors": {
+    "timeout": "Request timed out. Please try again.",
+    "rate_limited": "Too many requests. Please wait a moment.",
+    "network": "Network error. Check your connection.",
+    "not_found": "Not found.",
+    "server_error": "Server error. Please try again later."
   },
   "common": {
     "loading": "Loading...",

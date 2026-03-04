@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import { getPriceSnapshot } from "../lib/api-client";
+import { colors, fonts, spacing, radius } from "../lib/theme";
 
 interface Props {
   ticker: string;
@@ -10,39 +11,60 @@ interface Props {
 export default function WatchlistCard({ ticker, onPress }: Props) {
   const [price, setPrice] = useState<number | null>(null);
   const [change, setChange] = useState<number | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    setError(false);
     getPriceSnapshot(ticker)
       .then((res) => {
         setPrice(res.data.price ?? res.data.close);
         setChange(res.data.change_percent ?? null);
       })
-      .catch(() => {});
+      .catch(() => setError(true));
   }, [ticker]);
+
+  const isPositive = (change ?? 0) >= 0;
 
   return (
     <Pressable onPress={() => onPress(ticker)} style={s.card}>
-      <Text style={s.ticker}>{ticker}</Text>
-      {price !== null ? (
+      <View style={s.topRow}>
+        <Text style={s.ticker}>{ticker}</Text>
+        {change !== null && (
+          <View style={[s.badge, isPositive ? s.badgeGain : s.badgeLoss]}>
+            <Text style={[s.badgeText, { color: isPositive ? colors.gain : colors.loss }]}>
+              {isPositive ? "▲" : "▼"}
+            </Text>
+          </View>
+        )}
+      </View>
+      {error ? (
+        <Text style={s.errorText}>!</Text>
+      ) : price !== null ? (
         <>
           <Text style={s.price}>${price.toFixed(2)}</Text>
           {change !== null && (
-            <Text style={[s.change, { color: change >= 0 ? "#22c55e" : "#ef4444" }]}>
-              {change >= 0 ? "+" : ""}{change.toFixed(2)}%
+            <Text style={[s.change, { color: isPositive ? colors.gain : colors.loss }]}>
+              {isPositive ? "+" : ""}{change.toFixed(2)}%
             </Text>
           )}
         </>
       ) : (
-        <Text style={s.loading}>...</Text>
+        <Text style={s.loading}>---</Text>
       )}
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 12, padding: 16, marginRight: 12, minWidth: 120, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  ticker: { fontSize: 16, fontWeight: "bold", color: "#111827" },
-  price: { fontSize: 18, fontWeight: "600", color: "#374151", marginTop: 4 },
-  change: { fontSize: 14, fontWeight: "500", marginTop: 2 },
-  loading: { fontSize: 14, color: "#9ca3af", marginTop: 4 },
+  card: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.glassBorder, borderRadius: radius.md, padding: spacing.lg, marginRight: spacing.md, minWidth: 140 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
+  ticker: { fontSize: 15, fontFamily: fonts.mono, fontWeight: "700", color: colors.textPrimary, letterSpacing: 1 },
+  badge: { width: 20, height: 20, borderRadius: 4, alignItems: "center", justifyContent: "center" },
+  badgeGain: { backgroundColor: colors.gainBg },
+  badgeLoss: { backgroundColor: colors.lossBg },
+  badgeText: { fontSize: 9, fontWeight: "700" },
+  price: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, fontFamily: fonts.mono },
+  change: { fontSize: 12, fontFamily: fonts.mono, fontWeight: "600", marginTop: 2 },
+  loading: { fontSize: 16, fontFamily: fonts.mono, color: colors.textMuted, marginTop: spacing.xs },
+  errorText: { fontSize: 16, color: colors.error, fontWeight: "700" },
 });
