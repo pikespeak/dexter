@@ -23,8 +23,12 @@ const configSchema = z.object({
   API_FOOTBALL_KEY: z.string().optional(),
   ODDS_API_KEY: z.string().optional(),
 
-  // LLM
-  PREDICTION_MODEL: z.string().default('claude-sonnet-4-5-20250514'),
+  // LLM (via Vercel AI Gateway)
+  AI_GATEWAY_API_KEY: z.string().optional(),
+  AI_GATEWAY_BASE_URL: z.string().optional(),
+  PREDICTION_MODEL: z.string().default('anthropic/claude-sonnet-4-5-20250514'),
+  ENSEMBLE_MODELS: z.string().optional(),
+  // Legacy keys — kept optional to avoid breaking existing deployments
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   GOOGLE_API_KEY: z.string().optional(),
