@@ -1,0 +1,54 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://pikspeak:pikspeak@postgres:5432/pikspeak
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - API_FOOTBALL_KEY=${API_FOOTBALL_KEY}
+      - ODDS_API_KEY=${ODDS_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PREDICTION_MODEL=${PREDICTION_MODEL:-claude-sonnet-4-5-20250514}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - REVENUECAT_WEBHOOK_SECRET=${REVENUECAT_WEBHOOK_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://pikspeak.app}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pikspeak
+      POSTGRES_PASSWORD: pikspeak
+      POSTGRES_DB: pikspeak
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pikspeak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,0 +1,40 @@
+{
+  "cli": {
+    "version": ">= 12.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.pikspeak.app"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.pikspeak.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "team@pikspeak.app",
+        "ascAppId": "pikspeak-app-id",
+        "appleTeamId": "TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./play-store-key.json"
+      }
+    }
+  }
+}

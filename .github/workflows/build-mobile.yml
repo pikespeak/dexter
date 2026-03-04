@@ -1,0 +1,30 @@
+name: Build Mobile
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: cd packages/mobile && npm install
+
+      - name: Build iOS
+        run: cd packages/mobile && eas build --platform ios --non-interactive --profile production
+
+      - name: Build Android
+        run: cd packages/mobile && eas build --platform android --non-interactive --profile production

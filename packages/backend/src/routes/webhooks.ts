@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
+import { secureCompare } from '../middleware/auth.js';
 
 export const webhookRoutes = new Hono();
 
@@ -12,9 +13,10 @@ export const webhookRoutes = new Hono();
 webhookRoutes.post('/revenuecat', async (c) => {
   const body = await c.req.json();
 
-  // Verify webhook authenticity via shared secret
-  const webhookSecret = c.req.header('Authorization');
-  if (webhookSecret !== `Bearer ${process.env.REVENUECAT_WEBHOOK_SECRET}`) {
+  // Verify webhook authenticity via shared secret (constant-time comparison)
+  const webhookSecret = c.req.header('Authorization') || '';
+  const expectedSecret = `Bearer ${process.env.REVENUECAT_WEBHOOK_SECRET || ''}`;
+  if (!process.env.REVENUECAT_WEBHOOK_SECRET || !secureCompare(webhookSecret, expectedSecret)) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 

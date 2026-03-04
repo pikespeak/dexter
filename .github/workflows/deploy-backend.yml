@@ -1,0 +1,26 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/backend/**'
+      - 'src/**'
+      - 'docker-compose.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t pikspeak-backend:${{ github.sha }} -f packages/backend/Dockerfile .
+
+      - name: Push to registry
+        run: |
+          echo "Docker image built: pikspeak-backend:${{ github.sha }}"
+          echo "TODO: Push to container registry and deploy"
+          # docker tag pikspeak-backend:${{ github.sha }} $REGISTRY/pikspeak-backend:${{ github.sha }}
+          # docker push $REGISTRY/pikspeak-backend:${{ github.sha }}

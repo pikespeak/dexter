@@ -1,105 +1,128 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { usePredictionsStore } from '../stores/predictions';
+import { useI18n } from '../i18n';
+import { colors, typography, spacing, radius, shadows } from '../theme';
 
 /**
- * Stats Screen - Performance tracking
- * Shows hit rate, ROI, and prediction accuracy over time.
- * Builds trust with users by being transparent about performance.
+ * Stats Screen — Performance tracking, Stadium Night aesthetic.
+ * Big scoreboard numbers, green/red P/L coloring, trust-building disclaimer.
  */
 export function StatsScreen() {
   const { performance, fetchPerformance } = usePredictionsStore();
+  const { t } = useI18n();
 
   useEffect(() => {
     fetchPerformance();
   }, []);
 
+  const plValue = parseFloat(performance?.averageProfitLoss || '0');
+  const plColor = plValue >= 0 ? colors.pitch.green : colors.alert.red;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Performance</Text>
-        <Text style={styles.subtitle}>Unsere Trefferquote</Text>
+        <Text style={styles.title}>{t('stats.title')}</Text>
+        <Text style={styles.subtitle}>{t('stats.subtitle')}</Text>
       </View>
 
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{performance?.hitRate || '—'}</Text>
-          <Text style={styles.statLabel}>Trefferquote</Text>
+      <View style={styles.grid}>
+        {/* Hit Rate — hero card */}
+        <View style={[styles.statCard, styles.heroCard]}>
+          <Text style={styles.heroValue}>{performance?.hitRate || '—'}</Text>
+          <Text style={styles.statLabel}>{t('stats.hitRate')}</Text>
         </View>
 
+        {/* P/L */}
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: plColor }]}>
+            {plValue >= 0 ? '+' : ''}{performance?.averageProfitLoss || '0.00'}
+          </Text>
+          <Text style={styles.statLabel}>{t('stats.avgPL')}</Text>
+        </View>
+
+        {/* Total Predictions */}
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{performance?.totalPredictions || 0}</Text>
-          <Text style={styles.statLabel}>Vorhersagen</Text>
+          <Text style={styles.statLabel}>{t('stats.predictions')}</Text>
         </View>
 
+        {/* Correct */}
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{performance?.correctPredictions || 0}</Text>
-          <Text style={styles.statLabel}>Richtig</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={[
-            styles.statValue,
-            { color: parseFloat(performance?.averageProfitLoss || '0') >= 0 ? '#22c55e' : '#ef4444' }
-          ]}>
-            {performance?.averageProfitLoss || '0.00'}
-          </Text>
-          <Text style={styles.statLabel}>Avg. P/L</Text>
+          <Text style={styles.statLabel}>{t('stats.correct')}</Text>
         </View>
       </View>
 
       <View style={styles.disclaimer}>
-        <Text style={styles.disclaimerText}>
-          Vergangene Ergebnisse garantieren keine zukuenftigen Gewinne.
-          Alle Vorhersagen dienen der Unterhaltung und Analyse.
-          Bitte wette verantwortungsvoll.
-        </Text>
+        <Text style={styles.disclaimerText}>{t('stats.disclaimer')}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f0f23' },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 24 },
-  title: { fontSize: 32, fontWeight: '700', color: '#ffffff' },
-  subtitle: { fontSize: 16, color: '#8888aa', marginTop: 4 },
-  statsGrid: {
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg.primary,
+  },
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: 60,
+    paddingBottom: spacing['2xl'],
+  },
+  title: {
+    ...typography.h1,
+  },
+  subtitle: {
+    ...typography.bodySmall,
+    color: colors.text.muted,
+    marginTop: spacing.xs,
+  },
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
   statCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
     width: '47%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2a2a4e',
+    borderColor: colors.border.subtle,
+    ...shadows.card,
+  },
+  heroCard: {
+    width: '47%',
+    borderColor: colors.border.accent,
+  },
+  heroValue: {
+    ...typography.display,
+    color: colors.pitch.green,
+    marginBottom: spacing.xs,
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#4444ff',
-    marginBottom: 4,
+    ...typography.score,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#8888aa',
+    ...typography.overline,
+    fontSize: 10,
   },
   disclaimer: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
+    margin: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#2a2a4e',
+    borderColor: colors.border.subtle,
   },
   disclaimerText: {
-    fontSize: 12,
-    color: '#666688',
+    ...typography.caption,
     lineHeight: 18,
     textAlign: 'center',
   },

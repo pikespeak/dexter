@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, integer, boolean, jsonb, pgEnum, decimal } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, integer, boolean, jsonb, pgEnum, decimal, index } from 'drizzle-orm/pg-core';
 
 // Enums
 export const subscriptionPlanEnum = pgEnum('subscription_plan', ['free', 'pro', 'premium']);
@@ -42,7 +42,11 @@ export const matches = pgTable('matches', {
   awayScore: integer('away_score'),
   status: varchar('status', { length: 20 }).default('scheduled'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('matches_kickoff_idx').on(table.kickoff),
+  index('matches_status_idx').on(table.status),
+  index('matches_league_id_idx').on(table.leagueId),
+]);
 
 // Predictions table
 export const predictions = pgTable('predictions', {
@@ -58,7 +62,11 @@ export const predictions = pgTable('predictions', {
   predictedScore: varchar('predicted_score', { length: 10 }),
   tier: subscriptionPlanEnum('tier').notNull().default('pro'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('predictions_match_id_idx').on(table.matchId),
+  index('predictions_tier_idx').on(table.tier),
+  index('predictions_created_at_idx').on(table.createdAt),
+]);
 
 // Performance tracking table
 export const performance = pgTable('performance', {
@@ -82,4 +90,17 @@ export const valueBets = pgTable('value_bets', {
   kellyStake: decimal('kelly_stake', { precision: 5, scale: 2 }),
   tier: subscriptionPlanEnum('tier').notNull().default('pro'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('value_bets_match_id_idx').on(table.matchId),
+]);
+
+// Push notification tokens table
+export const pushTokens = pgTable('push_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  platform: varchar('platform', { length: 10 }).notNull(), // 'ios' | 'android'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('push_tokens_user_id_idx').on(table.userId),
+]);

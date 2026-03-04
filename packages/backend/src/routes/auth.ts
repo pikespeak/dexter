@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { db, schema } from '../db/index.js';
-import { generateToken, generateRefreshToken, authMiddleware } from '../middleware/auth.js';
+import { generateToken, generateRefreshToken, authMiddleware, refreshMiddleware } from '../middleware/auth.js';
 
 export const authRoutes = new Hono();
 
@@ -90,11 +90,17 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
   });
 });
 
-// POST /auth/refresh
-authRoutes.post('/refresh', authMiddleware, async (c) => {
+// POST /auth/refresh - uses separate refresh secret
+authRoutes.post('/refresh', refreshMiddleware, async (c) => {
   const user = c.get('user');
-  const token = generateToken(user);
-  const refreshToken = generateRefreshToken(user);
+
+  // Fetch latest subscription info
+  const [sub] = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.userId, user.userId)).limit(1);
+  const plan = sub?.plan || 'free';
+
+  const tokenPayload = { userId: user.userId, email: user.email, plan };
+  const token = generateToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
 
   return c.json({ token, refreshToken });
 });

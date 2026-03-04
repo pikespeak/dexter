@@ -1,7 +1,22 @@
 import { Context, Next } from 'hono';
 import jwt from 'jsonwebtoken';
+import { timingSafeEqual } from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pikspeak-dev-secret-change-in-production';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be set in production');
+    }
+    console.warn('[Auth] WARNING: Using dev JWT secret. Set JWT_SECRET in production.');
+    return 'pikspeak-dev-secret-DO-NOT-USE-IN-PRODUCTION';
+  }
+  return secret;
+}
+
+function getRefreshSecret(): string {
+  return process.env.JWT_REFRESH_SECRET || getJwtSecret() + '-refresh';
+}
 
 export interface JWTPayload {
   userId: string;
@@ -23,11 +38,33 @@ export async function authMiddleware(c: Context, next: Next) {
   const token = authHeader.slice(7);
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const payload = jwt.verify(token, getJwtSecret()) as JWTPayload;
     c.set('user', payload);
     await next();
   } catch {
     return c.json({ error: 'Invalid or expired token' }, 401);
+  }
+}
+
+/**
+ * Refresh token middleware.
+ * Uses a separate secret for refresh tokens.
+ */
+export async function refreshMiddleware(c: Context, next: Next) {
+  const authHeader = c.req.header('Authorization');
+
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: 'Missing or invalid Authorization header' }, 401);
+  }
+
+  const token = authHeader.slice(7);
+
+  try {
+    const payload = jwt.verify(token, getRefreshSecret()) as JWTPayload;
+    c.set('user', payload);
+    await next();
+  } catch {
+    return c.json({ error: 'Invalid or expired refresh token' }, 401);
   }
 }
 
@@ -61,15 +98,27 @@ export function requirePlan(minimumPlan: 'free' | 'pro' | 'premium') {
 }
 
 /**
- * Generate a JWT token for a user.
+ * Generate a JWT access token for a user.
  */
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 /**
- * Generate a refresh token with longer expiry.
+ * Generate a refresh token with longer expiry (separate secret).
  */
 export function generateRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, getRefreshSecret(), { expiresIn: '30d' });
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ */
+export function secureCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Compare against itself to maintain constant time
+    timingSafeEqual(Buffer.from(a), Buffer.from(a));
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }

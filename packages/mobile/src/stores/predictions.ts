@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { predictionsApi, matchesApi, statsApi } from '../services/api.js';
+import { predictionsApi, matchesApi, statsApi } from '../services/api';
 
 interface Match {
   id: string;
@@ -26,26 +26,30 @@ interface Prediction {
   };
 }
 
+interface PerformanceStats {
+  totalPredictions: number;
+  correctPredictions: number;
+  hitRate: string;
+  averageProfitLoss: string;
+}
+
 interface PredictionsState {
   todaysPredictions: Prediction[];
+  freePrediction: Prediction | null;
   upcomingMatches: Match[];
-  performance: {
-    totalPredictions: number;
-    correctPredictions: number;
-    hitRate: string;
-    averageProfitLoss: string;
-  } | null;
+  performance: PerformanceStats | null;
   isLoading: boolean;
   error: string | null;
 
   fetchTodaysPredictions: () => Promise<void>;
-  fetchFreePrediction: () => Promise<Prediction | null>;
+  fetchFreePrediction: () => Promise<void>;
   fetchUpcomingMatches: () => Promise<void>;
   fetchPerformance: () => Promise<void>;
 }
 
 export const usePredictionsStore = create<PredictionsState>((set) => ({
   todaysPredictions: [],
+  freePrediction: null,
   upcomingMatches: [],
   performance: null,
   isLoading: false,
@@ -55,26 +59,36 @@ export const usePredictionsStore = create<PredictionsState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const result = await predictionsApi.getToday();
-      set({ todaysPredictions: result.predictions, isLoading: false });
+      set({
+        todaysPredictions: result.predictions as unknown as Prediction[],
+        isLoading: false,
+      });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
   },
 
   fetchFreePrediction: async () => {
+    set({ isLoading: true, error: null });
     try {
       const result = await predictionsApi.getFree();
-      return result.prediction;
-    } catch {
-      return null;
+      set({
+        freePrediction: result.prediction as unknown as Prediction | null,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
     }
   },
 
   fetchUpcomingMatches: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const result = await matchesApi.getUpcoming(20);
-      set({ upcomingMatches: result.matches, isLoading: false });
+      set({
+        upcomingMatches: result.matches as unknown as Match[],
+        isLoading: false,
+      });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
@@ -83,7 +97,7 @@ export const usePredictionsStore = create<PredictionsState>((set) => ({
   fetchPerformance: async () => {
     try {
       const result = await statsApi.getPerformance();
-      set({ performance: result.performance });
+      set({ performance: result.performance as unknown as PerformanceStats });
     } catch {
       // Performance stats are non-critical
     }

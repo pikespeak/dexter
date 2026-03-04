@@ -1,76 +1,151 @@
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePredictionsStore } from '../stores/predictions';
 import { useAuthStore } from '../stores/auth';
 import { PredictionCard } from '../components/PredictionCard';
+import { PredictionCardSkeleton } from '../components/SkeletonLoader';
+import { ErrorState } from '../components/ErrorState';
+import { useI18n } from '../i18n';
+import { colors, typography, spacing, radius, shadows } from '../theme';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+type HomeNav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
- * Home Screen - Today's Predictions Feed
- * Shows prediction cards sorted by confidence, with kickoff time.
- * Free users see 1 prediction, Pro/Premium see all.
+ * Home Screen — Today's Predictions Feed
+ * Stadium Night aesthetic with conversion-optimized free user banner.
  */
 export function HomeScreen() {
-  const { todaysPredictions, isLoading, error, fetchTodaysPredictions, fetchFreePrediction } = usePredictionsStore();
+  const navigation = useNavigation<HomeNav>();
+  const { t } = useI18n();
+  const {
+    todaysPredictions,
+    freePrediction,
+    isLoading,
+    error,
+    fetchTodaysPredictions,
+    fetchFreePrediction,
+  } = usePredictionsStore();
   const { isAuthenticated, plan } = useAuthStore();
-
-  useEffect(() => {
-    if (isAuthenticated && (plan === 'pro' || plan === 'premium')) {
-      fetchTodaysPredictions();
-    }
-  }, [isAuthenticated, plan]);
 
   const isPro = plan === 'pro' || plan === 'premium';
 
+  useEffect(() => {
+    if (isAuthenticated && isPro) {
+      fetchTodaysPredictions();
+    } else {
+      fetchFreePrediction();
+    }
+  }, [isAuthenticated, plan]);
+
+  const handleRefresh = () => {
+    if (isAuthenticated && isPro) {
+      fetchTodaysPredictions();
+    } else {
+      fetchFreePrediction();
+    }
+  };
+
+  const handlePredictionPress = (matchId: string, predictionId: string) => {
+    if (!isAuthenticated) {
+      navigation.navigate('Login');
+      return;
+    }
+    if (!isPro) {
+      navigation.navigate('Paywall');
+      return;
+    }
+    navigation.navigate('PredictionDetail', { predictionId, matchId });
+  };
+
+  const predictions = isPro ? todaysPredictions : freePrediction ? [freePrediction] : [];
+
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Heute</Text>
-        <Text style={styles.subtitle}>
-          {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </Text>
+        <Text style={styles.title}>{t('home.title')}</Text>
+        <Text style={styles.subtitle}>{dateStr}</Text>
       </View>
 
       <ScrollView
         style={styles.feed}
+        contentContainerStyle={styles.feedContent}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={isPro ? fetchTodaysPredictions : undefined}
+            onRefresh={handleRefresh}
+            tintColor={colors.pitch.green}
           />
         }
       >
-        {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+        {error && <ErrorState message={error} onRetry={handleRefresh} />}
 
-        {!isPro && (
+        {/* Conversion banner for free users */}
+        {!isPro && !error && (
           <View style={styles.freeBanner}>
-            <Text style={styles.freeTitle}>Kostenlose Vorschau</Text>
-            <Text style={styles.freeText}>
-              Upgrade auf Pro für alle täglichen Vorhersagen
-            </Text>
-            <TouchableOpacity style={styles.upgradeButton}>
-              <Text style={styles.upgradeText}>Pro ab 4,99€/Monat</Text>
-            </TouchableOpacity>
+            {/* Accent bar */}
+            <View style={styles.bannerAccent} />
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerOverline}>{t('home.freePreview')}</Text>
+              <Text style={styles.bannerText}>{t('home.freeText')}</Text>
+              <TouchableOpacity
+                style={styles.bannerCta}
+                onPress={() => {
+                  if (!isAuthenticated) {
+                    navigation.navigate('Register');
+                  } else {
+                    navigation.navigate('Paywall');
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.bannerCtaText}>
+                  {isAuthenticated
+                    ? t('home.upgradeProCta', { price: '4.99€' })
+                    : t('home.registerCta')}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {todaysPredictions.map((prediction) => (
-          <PredictionCard key={prediction.id} prediction={prediction} />
+        {/* Loading skeletons */}
+        {isLoading && predictions.length === 0 && (
+          <>
+            <PredictionCardSkeleton />
+            <PredictionCardSkeleton />
+            <PredictionCardSkeleton />
+          </>
+        )}
+
+        {/* Prediction cards */}
+        {predictions.map((prediction) => (
+          <PredictionCard
+            key={prediction.id}
+            prediction={prediction}
+            onPress={() => handlePredictionPress(prediction.match.id, prediction.id)}
+          />
         ))}
 
-        {todaysPredictions.length === 0 && !isLoading && (
+        {/* Empty state */}
+        {predictions.length === 0 && !isLoading && !error && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>⚽</Text>
-            <Text style={styles.emptyTitle}>Keine Vorhersagen</Text>
-            <Text style={styles.emptyText}>
-              Heute stehen keine Spiele auf dem Programm.
-              Schau morgen wieder vorbei!
-            </Text>
+            <Text style={styles.emptyTitle}>{t('home.noPredictions')}</Text>
+            <Text style={styles.emptyText}>{t('home.noPredictionsText')}</Text>
           </View>
         )}
+
+        <View style={{ height: spacing['3xl'] }} />
       </ScrollView>
     </View>
   );
@@ -79,85 +154,79 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f23',
+    backgroundColor: colors.bg.primary,
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
     paddingTop: 60,
-    paddingBottom: 16,
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#ffffff',
+    ...typography.h1,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#8888aa',
-    marginTop: 4,
+    ...typography.bodySmall,
+    color: colors.text.muted,
+    marginTop: spacing.xs,
   },
   feed: {
     flex: 1,
-    paddingHorizontal: 16,
   },
-  errorBanner: {
-    backgroundColor: '#3d1f1f',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
+  feedContent: {
+    paddingHorizontal: spacing.lg,
   },
-  errorText: {
-    color: '#ff6b6b',
-    textAlign: 'center',
-  },
+  // Conversion banner
   freeBanner: {
-    backgroundColor: '#1a1a3e',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: colors.bg.card,
+    borderRadius: radius.lg,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#3333aa',
+    borderColor: colors.border.accent,
+    ...shadows.glow,
   },
-  freeTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 8,
+  bannerAccent: {
+    height: 3,
+    backgroundColor: colors.pitch.green,
   },
-  freeText: {
-    fontSize: 14,
-    color: '#8888aa',
-    marginBottom: 16,
+  bannerContent: {
+    padding: spacing.xl,
   },
-  upgradeButton: {
-    backgroundColor: '#4444ff',
-    borderRadius: 8,
-    padding: 12,
+  bannerOverline: {
+    ...typography.overline,
+    color: colors.pitch.green,
+    marginBottom: spacing.sm,
+  },
+  bannerText: {
+    ...typography.body,
+    marginBottom: spacing.lg,
+  },
+  bannerCta: {
+    backgroundColor: colors.pitch.green,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
-  upgradeText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 16,
+  bannerCtaText: {
+    ...typography.button,
+    color: colors.text.inverse,
   },
+  // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: spacing['5xl'],
   },
   emptyIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 8,
+    ...typography.h2,
+    marginBottom: spacing.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#8888aa',
+    ...typography.body,
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing['4xl'],
   },
 });
