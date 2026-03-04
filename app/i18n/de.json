@@ -1,0 +1,77 @@
+{
+  "tabs": {
+    "search": "Suche",
+    "agent": "Agent",
+    "settings": "Einstellungen"
+  },
+  "onboarding": {
+    "slide1_title": "Dein Finanz-Research Assistent",
+    "slide1_desc": "Dexter gibt dir sofortigen Zugriff auf Aktiendaten, Finanzkennzahlen und KI-gestützte Recherche.",
+    "slide2_title": "Echtzeit-Daten",
+    "slide2_desc": "Preise, Finanzen, Metriken — alles auf einen Blick. Immer aktuell.",
+    "slide3_title": "KI Agent",
+    "slide3_desc": "Stelle Fragen in natürlicher Sprache. Dexter recherchiert und antwortet für dich.",
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "get_started": "Los geht's"
+  },
+  "search": {
+    "placeholder": "Ticker suchen (z.B. AAPL)",
+    "watchlist": "Watchlist",
+    "recent": "Letzte Suchen",
+    "no_watchlist": "Noch keine Ticker in der Watchlist",
+    "no_results": "Keine Ergebnisse gefunden",
+    "clear_recent": "Löschen"
+  },
+  "ticker": {
+    "price_chart": "Kursverlauf",
+    "key_metrics": "Kennzahlen",
+    "financials": "Finanzdaten",
+    "income": "Gewinn",
+    "balance": "Bilanz",
+    "cashflow": "Cashflow",
+    "news": "Nachrichten",
+    "filings": "SEC Filings",
+    "insider_trades": "Insiderhandel",
+    "add_watchlist": "Zur Watchlist hinzufügen",
+    "remove_watchlist": "Von Watchlist entfernen",
+    "market_cap": "Marktkapitalisierung",
+    "pe_ratio": "KGV",
+    "eps": "EPS",
+    "dividend_yield": "Div. Rendite",
+    "price_to_book": "KBV",
+    "price_to_sales": "KUV",
+    "no_data": "Keine Daten verfügbar"
+  },
+  "agent": {
+    "placeholder": "Frag mich alles über Aktien...",
+    "send": "Senden",
+    "thinking": "Denke nach...",
+    "welcome": "Frag mich alles über Aktien, Finanzkennzahlen oder Marktdaten.",
+    "error": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "server_url": "Server URL",
+    "server_url_placeholder": "http://localhost:3000/api/v1",
+    "api_key": "API Schlüssel",
+    "api_key_placeholder": "API Schlüssel eingeben",
+    "language": "Sprache",
+    "test_connection": "Verbindung testen",
+    "testing": "Teste...",
+    "connected": "Verbunden",
+    "disconnected": "Verbindung fehlgeschlagen",
+    "show_onboarding": "Onboarding erneut anzeigen",
+    "app_version": "App Version",
+    "english": "Englisch",
+    "german": "Deutsch"
+  },
+  "common": {
+    "loading": "Laden...",
+    "error": "Etwas ist schiefgelaufen",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "close": "Schließen"
+  }
+}

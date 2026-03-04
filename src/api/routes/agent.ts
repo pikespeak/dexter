@@ -20,6 +20,16 @@ agentRoutes.post('/query', async (c) => {
   const agent = Agent.create({ model, modelProvider });
 
   return streamSSE(c, async (stream) => {
+    // Keepalive ping every 15s to prevent mobile carriers from killing idle connections
+    const pingInterval = setInterval(async () => {
+      try {
+        await stream.writeSSE({ event: 'ping', data: '' });
+      } catch {
+        // Stream already closed
+        clearInterval(pingInterval);
+      }
+    }, 15_000);
+
     try {
       for await (const event of agent.run(query)) {
         // For SSE, strip large result payloads from tool_end events to save bandwidth
@@ -45,6 +55,8 @@ agentRoutes.post('/query', async (c) => {
         event: 'error',
         data: JSON.stringify({ error: message }),
       });
+    } finally {
+      clearInterval(pingInterval);
     }
   });
 });

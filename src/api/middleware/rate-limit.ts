@@ -30,6 +30,11 @@ function getBucket(key: string, maxTokens: number): TokenBucket {
   return bucket;
 }
 
+/** Exported for testing — clears all token buckets. */
+export function resetBuckets() {
+  buckets.clear();
+}
+
 /**
  * In-memory token bucket rate limiter.
  * 60 req/min for data endpoints, 10 req/min for /agent.
@@ -51,10 +56,13 @@ export const rateLimiter = () =>
     const bucketKey = `${apiKey}:${isAgent ? 'agent' : 'data'}`;
 
     const bucket = getBucket(bucketKey, maxTokens);
+    const resetSeconds = Math.ceil(60 / maxTokens);
 
     if (bucket.tokens < 1) {
-      const retryAfter = Math.ceil(60 / maxTokens);
-      c.header('Retry-After', String(retryAfter));
+      c.header('Retry-After', String(resetSeconds));
+      c.header('X-RateLimit-Limit', String(maxTokens));
+      c.header('X-RateLimit-Remaining', '0');
+      c.header('X-RateLimit-Reset', String(resetSeconds));
       return c.json(
         { error: 'Rate limit exceeded', code: 'RATE_LIMITED', status: 429 },
         429,
@@ -62,5 +70,11 @@ export const rateLimiter = () =>
     }
 
     bucket.tokens -= 1;
+
+    // Set rate limit headers on every response
+    c.header('X-RateLimit-Limit', String(maxTokens));
+    c.header('X-RateLimit-Remaining', String(Math.floor(bucket.tokens)));
+    c.header('X-RateLimit-Reset', String(resetSeconds));
+
     await next();
   });

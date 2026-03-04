@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { callApi } from '../../tools/finance/api.js';
 import { parseUpstreamError } from '../types.js';
+import { paginate } from '../pagination.js';
 
 export const companyRoutes = new Hono();
 
@@ -23,7 +24,8 @@ companyRoutes.get('/:ticker/news', async (c) => {
 
   try {
     const { data } = await callApi('/news/', { ticker, limit });
-    return c.json({ data: data.news ?? data, ticker });
+    const items = data.news ?? data;
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -36,7 +38,8 @@ companyRoutes.get('/:ticker/insider-trades', async (c) => {
 
   try {
     const { data } = await callApi('/insider-trades/', { ticker, limit });
-    return c.json({ data: data.insider_trades ?? data, ticker });
+    const items = data.insider_trades ?? data;
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -54,7 +57,8 @@ companyRoutes.get('/:ticker/segments', async (c) => {
       period,
       limit,
     });
-    return c.json({ data: data.segmented_revenues ?? data, ticker });
+    const items = data.segmented_revenues ?? data;
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }

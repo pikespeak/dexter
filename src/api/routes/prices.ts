@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { callApi } from '../../tools/finance/api.js';
 import { ApiError, parseUpstreamError } from '../types.js';
+import { paginate } from '../pagination.js';
 
 export const pricesRoutes = new Hono();
 
@@ -9,6 +10,7 @@ pricesRoutes.get('/snapshot/:ticker', async (c) => {
   const ticker = c.req.param('ticker').toUpperCase();
   try {
     const { data } = await callApi('/prices/snapshot/', { ticker });
+    c.header('Cache-Control', 'public, max-age=60');
     return c.json({ data: data.snapshot ?? data, ticker });
   } catch (error) {
     throw parseUpstreamError(error);
@@ -35,7 +37,9 @@ pricesRoutes.get('/:ticker', async (c) => {
       start_date,
       end_date,
     });
-    return c.json({ data: data.prices ?? data, ticker });
+    const items = data.prices ?? data;
+    c.header('Cache-Control', 'public, max-age=3600');
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -46,6 +50,7 @@ pricesRoutes.get('/crypto/snapshot/:ticker', async (c) => {
   const ticker = c.req.param('ticker').toUpperCase();
   try {
     const { data } = await callApi('/crypto/prices/snapshot/', { ticker });
+    c.header('Cache-Control', 'public, max-age=60');
     return c.json({ data: data.snapshot ?? data, ticker });
   } catch (error) {
     throw parseUpstreamError(error);
@@ -72,7 +77,9 @@ pricesRoutes.get('/crypto/:ticker', async (c) => {
       start_date,
       end_date,
     });
-    return c.json({ data: data.prices ?? data, ticker });
+    const items = data.prices ?? data;
+    c.header('Cache-Control', 'public, max-age=3600');
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -82,7 +89,8 @@ pricesRoutes.get('/crypto/:ticker', async (c) => {
 pricesRoutes.get('/crypto/tickers', async (c) => {
   try {
     const { data } = await callApi('/crypto/tickers/', {});
-    return c.json({ data: data.tickers ?? data });
+    const items = data.tickers ?? data;
+    return c.json({ ...paginate(items, c) });
   } catch (error) {
     throw parseUpstreamError(error);
   }

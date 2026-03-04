@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { callApi } from '../../tools/finance/api.js';
 import { parseUpstreamError } from '../types.js';
+import { paginate } from '../pagination.js';
 
 export const filingsRoutes = new Hono();
 
@@ -15,7 +16,8 @@ filingsRoutes.get('/:ticker', async (c) => {
     if (filing_type) params.filing_type = filing_type;
 
     const { data } = await callApi('/filings/', params);
-    return c.json({ data: data.filings ?? data, ticker });
+    const items = data.filings ?? data;
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -32,7 +34,8 @@ filingsRoutes.get('/items/:ticker', async (c) => {
     if (filing_type) params.filing_type = filing_type;
 
     const { data } = await callApi('/filings/items/', params);
-    return c.json({ data: data.filing_items ?? data, ticker });
+    const items = data.filing_items ?? data;
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }

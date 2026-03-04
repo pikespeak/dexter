@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { callApi } from '../../tools/finance/api.js';
 import { parseUpstreamError } from '../types.js';
+import { paginate } from '../pagination.js';
 
 export const metricsRoutes = new Hono();
 
@@ -10,6 +11,7 @@ metricsRoutes.get('/snapshot/:ticker', async (c) => {
 
   try {
     const { data } = await callApi('/financial-metrics/snapshot/', { ticker });
+    c.header('Cache-Control', 'public, max-age=60');
     return c.json({ data: data.snapshot ?? data, ticker });
   } catch (error) {
     throw parseUpstreamError(error);
@@ -28,7 +30,9 @@ metricsRoutes.get('/:ticker', async (c) => {
       period,
       limit,
     });
-    return c.json({ data: data.financial_metrics ?? data, ticker });
+    const items = data.financial_metrics ?? data;
+    c.header('Cache-Control', 'public, max-age=3600');
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }
@@ -46,7 +50,9 @@ metricsRoutes.get('/estimates/:ticker', async (c) => {
       period,
       limit,
     });
-    return c.json({ data: data.analyst_estimates ?? data, ticker });
+    const items = data.analyst_estimates ?? data;
+    c.header('Cache-Control', 'public, max-age=3600');
+    return c.json({ ...paginate(items, c), ticker });
   } catch (error) {
     throw parseUpstreamError(error);
   }

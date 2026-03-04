@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { compress } from 'hono/compress';
+import { logger } from 'hono/logger';
+import { etag } from 'hono/etag';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimiter } from './middleware/rate-limit.js';
 import { ApiError } from './types.js';
@@ -12,7 +15,7 @@ import { agentRoutes } from './routes/agent.js';
 import { healthRoutes } from './routes/health.js';
 import { registerOpenApi } from './openapi.js';
 
-const app = new Hono().basePath('/api/v1');
+export const app = new Hono().basePath('/api/v1');
 
 // Global error handler (Hono's built-in onError)
 app.onError((error, c) => {
@@ -33,7 +36,19 @@ app.onError((error, c) => {
 });
 
 // Global middleware
-app.use('*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'OPTIONS'] }));
+app.use('*', logger());
+app.use('*', compress());
+app.use('*', etag());
+
+const corsOrigins = (process.env.CORS_ORIGINS || '*').split(',').map((o) => o.trim()).filter(Boolean);
+app.use(
+  '*',
+  cors({
+    origin: corsOrigins.includes('*') ? '*' : corsOrigins,
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+  }),
+);
+
 app.use('*', authMiddleware());
 app.use('*', rateLimiter());
 
@@ -57,5 +72,15 @@ export function startServer(port: number = 3000) {
   console.log(`🚀 Dexter API server running on http://localhost:${server.port}`);
   console.log(`📖 Swagger UI: http://localhost:${server.port}/api/v1/docs`);
   console.log(`📋 OpenAPI spec: http://localhost:${server.port}/api/v1/openapi.json`);
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    server.stop();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+
   return server;
 }

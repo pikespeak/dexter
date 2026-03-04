@@ -1,0 +1,77 @@
+{
+  "tabs": {
+    "search": "Search",
+    "agent": "Agent",
+    "settings": "Settings"
+  },
+  "onboarding": {
+    "slide1_title": "Your Finance Research Assistant",
+    "slide1_desc": "Dexter gives you instant access to stock data, financials, and AI-powered research.",
+    "slide2_title": "Real-Time Data",
+    "slide2_desc": "Prices, financials, metrics — all at a glance. Always up to date.",
+    "slide3_title": "AI Agent",
+    "slide3_desc": "Ask questions in natural language. Dexter researches and answers for you.",
+    "skip": "Skip",
+    "next": "Next",
+    "get_started": "Get Started"
+  },
+  "search": {
+    "placeholder": "Search ticker (e.g. AAPL)",
+    "watchlist": "Watchlist",
+    "recent": "Recent Searches",
+    "no_watchlist": "No tickers in watchlist yet",
+    "no_results": "No results found",
+    "clear_recent": "Clear"
+  },
+  "ticker": {
+    "price_chart": "Price Chart",
+    "key_metrics": "Key Metrics",
+    "financials": "Financials",
+    "income": "Income",
+    "balance": "Balance",
+    "cashflow": "Cash Flow",
+    "news": "News",
+    "filings": "Filings",
+    "insider_trades": "Insider Trades",
+    "add_watchlist": "Add to Watchlist",
+    "remove_watchlist": "Remove from Watchlist",
+    "market_cap": "Market Cap",
+    "pe_ratio": "P/E Ratio",
+    "eps": "EPS",
+    "dividend_yield": "Div. Yield",
+    "price_to_book": "P/B",
+    "price_to_sales": "P/S",
+    "no_data": "No data available"
+  },
+  "agent": {
+    "placeholder": "Ask anything about stocks...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "welcome": "Ask me anything about stocks, financials, or market data.",
+    "error": "An error occurred. Please try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "server_url": "Server URL",
+    "server_url_placeholder": "http://localhost:3000/api/v1",
+    "api_key": "API Key",
+    "api_key_placeholder": "Enter your API key",
+    "language": "Language",
+    "test_connection": "Test Connection",
+    "testing": "Testing...",
+    "connected": "Connected",
+    "disconnected": "Connection failed",
+    "show_onboarding": "Show Onboarding Again",
+    "app_version": "App Version",
+    "english": "English",
+    "german": "German"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close"
+  }
+}
