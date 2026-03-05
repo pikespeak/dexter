@@ -99,85 +99,29 @@ export async function trackResults(): Promise<TrackingResult> {
         })
         .where(eq(schema.matches.id, match.id));
 
-      // --- 1X2 Evaluation ---
-      const actualOutcome =
-        homeGoals > awayGoals ? 'home' : homeGoals < awayGoals ? 'away' : 'draw';
-
-      const homeProb = Number(prediction.homeWinProb || 0);
-      const drawProb = Number(prediction.drawProb || 0);
-      const awayProb = Number(prediction.awayWinProb || 0);
-
-      const predictedOutcome =
-        homeProb >= drawProb && homeProb >= awayProb
-          ? 'home'
-          : awayProb >= homeProb && awayProb >= drawProb
-            ? 'away'
-            : 'draw';
-
-      const wasCorrect = predictedOutcome === actualOutcome;
-
-      // --- Brier Score ---
-      // Brier = (1/3) * sum of (predicted_prob - actual)^2 for each outcome
-      const actualHome = actualOutcome === 'home' ? 1 : 0;
-      const actualDraw = actualOutcome === 'draw' ? 1 : 0;
-      const actualAway = actualOutcome === 'away' ? 1 : 0;
-
-      const brierScore =
-        (Math.pow(homeProb / 100 - actualHome, 2) +
-         Math.pow(drawProb / 100 - actualDraw, 2) +
-         Math.pow(awayProb / 100 - actualAway, 2)) / 3;
-
-      // --- Over/Under 2.5 ---
-      const actualOver25 = totalGoals > 2.5;
-      const overUnderCorrect = prediction.overUnder25
-        ? (prediction.overUnder25 === 'over') === actualOver25
-        : null;
-
-      // --- BTTS ---
-      const actualBtts = homeGoals > 0 && awayGoals > 0;
-      const bttsCorrect = prediction.btts != null
-        ? prediction.btts === actualBtts
-        : null;
-
-      // --- Exact Score ---
-      const exactScoreCorrect = prediction.predictedScore === actualResult;
-
-      // --- P/L with real bookmaker odds ---
-      let realProfitLoss: number | null = null;
-      const predictedOdds =
-        predictedOutcome === 'home' ? Number(prediction.bestOddsHome || 0) :
-        predictedOutcome === 'draw' ? Number(prediction.bestOddsDraw || 0) :
-        Number(prediction.bestOddsAway || 0);
-
-      if (predictedOdds > 0) {
-        realProfitLoss = wasCorrect ? predictedOdds - 1 : -1;
-      }
-
-      // --- Legacy fair-odds P/L (kept for backwards compatibility) ---
-      const maxProb = Math.max(homeProb, drawProb, awayProb);
-      const fairOdds = maxProb > 0 ? 100 / maxProb : 0;
-      const profitLoss = wasCorrect ? fairOdds - 1 : -1;
+      // Evaluate prediction using pure function
+      const outcome = evaluatePredictionOutcome(prediction, homeGoals, awayGoals);
 
       // Insert performance record
       await db.insert(schema.performance).values({
         predictionId: prediction.id,
-        wasCorrect,
+        wasCorrect: outcome.wasCorrect,
         actualResult,
-        profitLoss: String(Math.round(profitLoss * 100) / 100),
-        realProfitLoss: realProfitLoss != null ? String(Math.round(realProfitLoss * 100) / 100) : null,
-        brierScore: String(Math.round(brierScore * 1000000) / 1000000),
-        overUnderCorrect,
-        bttsCorrect,
-        exactScoreCorrect,
+        profitLoss: String(Math.round(outcome.fairProfitLoss * 100) / 100),
+        realProfitLoss: outcome.realProfitLoss != null ? String(Math.round(outcome.realProfitLoss * 100) / 100) : null,
+        brierScore: String(Math.round(outcome.brierScore * 1000000) / 1000000),
+        overUnderCorrect: outcome.overUnderCorrect,
+        bttsCorrect: outcome.bttsCorrect,
+        exactScoreCorrect: outcome.exactScoreCorrect,
       });
 
       evaluated++;
-      if (wasCorrect) correct++;
+      if (outcome.wasCorrect) correct++;
 
       console.log(
         `[ResultTracker] ${match.homeTeam} ${actualResult} ${match.awayTeam} — ` +
-        `1X2:${wasCorrect ? 'OK' : 'WRONG'} O/U:${overUnderCorrect ?? 'N/A'} BTTS:${bttsCorrect ?? 'N/A'} ` +
-        `Brier:${brierScore.toFixed(4)} Exact:${exactScoreCorrect}`
+        `1X2:${outcome.wasCorrect ? 'OK' : 'WRONG'} O/U:${outcome.overUnderCorrect ?? 'N/A'} BTTS:${outcome.bttsCorrect ?? 'N/A'} ` +
+        `Brier:${outcome.brierScore.toFixed(4)} Exact:${outcome.exactScoreCorrect}`
       );
 
       // --- Value Bet Evaluation ---
@@ -217,9 +161,112 @@ export async function trackResults(): Promise<TrackingResult> {
 }
 
 /**
+ * Evaluate a prediction against actual match result.
+ * Pure function — no DB or API access.
+ */
+export function evaluatePredictionOutcome(
+  prediction: {
+    homeWinProb: number | string | null;
+    drawProb: number | string | null;
+    awayWinProb: number | string | null;
+    overUnder25: string | null;
+    btts: boolean | null;
+    predictedScore: string | null;
+    bestOddsHome: number | string | null;
+    bestOddsDraw: number | string | null;
+    bestOddsAway: number | string | null;
+  },
+  homeGoals: number,
+  awayGoals: number,
+): {
+  actualOutcome: 'home' | 'draw' | 'away';
+  predictedOutcome: 'home' | 'draw' | 'away';
+  wasCorrect: boolean;
+  brierScore: number;
+  overUnderCorrect: boolean | null;
+  bttsCorrect: boolean | null;
+  exactScoreCorrect: boolean;
+  realProfitLoss: number | null;
+  fairProfitLoss: number;
+} {
+  const totalGoals = homeGoals + awayGoals;
+  const actualResult = `${homeGoals}-${awayGoals}`;
+
+  // 1X2 Evaluation
+  const actualOutcome =
+    homeGoals > awayGoals ? 'home' as const : homeGoals < awayGoals ? 'away' as const : 'draw' as const;
+
+  const homeProb = Number(prediction.homeWinProb || 0);
+  const drawProb = Number(prediction.drawProb || 0);
+  const awayProb = Number(prediction.awayWinProb || 0);
+
+  const predictedOutcome =
+    homeProb >= drawProb && homeProb >= awayProb
+      ? 'home' as const
+      : awayProb >= homeProb && awayProb >= drawProb
+        ? 'away' as const
+        : 'draw' as const;
+
+  const wasCorrect = predictedOutcome === actualOutcome;
+
+  // Brier Score
+  const actualHome = actualOutcome === 'home' ? 1 : 0;
+  const actualDraw = actualOutcome === 'draw' ? 1 : 0;
+  const actualAway = actualOutcome === 'away' ? 1 : 0;
+
+  const brierScore =
+    (Math.pow(homeProb / 100 - actualHome, 2) +
+     Math.pow(drawProb / 100 - actualDraw, 2) +
+     Math.pow(awayProb / 100 - actualAway, 2)) / 3;
+
+  // Over/Under 2.5
+  const actualOver25 = totalGoals > 2.5;
+  const overUnderCorrect = prediction.overUnder25
+    ? (prediction.overUnder25 === 'over') === actualOver25
+    : null;
+
+  // BTTS
+  const actualBtts = homeGoals > 0 && awayGoals > 0;
+  const bttsCorrect = prediction.btts != null
+    ? prediction.btts === actualBtts
+    : null;
+
+  // Exact Score
+  const exactScoreCorrect = prediction.predictedScore === actualResult;
+
+  // Real P/L with bookmaker odds
+  let realProfitLoss: number | null = null;
+  const predictedOdds =
+    predictedOutcome === 'home' ? Number(prediction.bestOddsHome || 0) :
+    predictedOutcome === 'draw' ? Number(prediction.bestOddsDraw || 0) :
+    Number(prediction.bestOddsAway || 0);
+
+  if (predictedOdds > 0) {
+    realProfitLoss = wasCorrect ? predictedOdds - 1 : -1;
+  }
+
+  // Fair odds P/L
+  const maxProb = Math.max(homeProb, drawProb, awayProb);
+  const fairOdds = maxProb > 0 ? 100 / maxProb : 0;
+  const fairProfitLoss = wasCorrect ? fairOdds - 1 : -1;
+
+  return {
+    actualOutcome,
+    predictedOutcome,
+    wasCorrect,
+    brierScore,
+    overUnderCorrect,
+    bttsCorrect,
+    exactScoreCorrect,
+    realProfitLoss,
+    fairProfitLoss,
+  };
+}
+
+/**
  * Determine if a value bet was won based on bet type and actual score.
  */
-function evaluateValueBet(betType: string, homeGoals: number, awayGoals: number): boolean | null {
+export function evaluateValueBet(betType: string, homeGoals: number, awayGoals: number): boolean | null {
   const totalGoals = homeGoals + awayGoals;
   const btts = homeGoals > 0 && awayGoals > 0;
 

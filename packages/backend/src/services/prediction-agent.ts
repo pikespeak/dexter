@@ -475,7 +475,7 @@ function parseLlmResponse(rawResponse: string): unknown {
   }
 }
 
-function normalizeProbabilities(raw: Record<string, unknown>): void {
+export function normalizeProbabilities(raw: Record<string, unknown>): void {
   const sum = Number(raw.homeWinProb || 0) + Number(raw.drawProb || 0) + Number(raw.awayWinProb || 0);
   if (sum > 0 && Math.abs(sum - 100) > 1) {
     const factor = 100 / sum;

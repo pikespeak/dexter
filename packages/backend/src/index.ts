@@ -14,9 +14,13 @@ import {
   startCronScheduler,
   triggerPipeline,
   triggerResultTracking,
+  triggerDailyMetrics,
+  triggerClosingOddsCapture,
   getSchedulerStatus,
 } from './cron.js';
 import { isCacheAvailable } from './services/cache.js';
+import { runBacktest, compareStrategies, type BacktestConfig } from './services/backtester.js';
+import { generateModelReport } from './services/calibration.js';
 
 const app = new Hono();
 
@@ -95,6 +99,95 @@ app.post('/admin/track-results', async (c) => {
 // Admin: Scheduler status
 app.get('/admin/status', (c) => {
   return c.json(getSchedulerStatus());
+});
+
+// Admin: Run backtest
+app.post('/admin/backtest', async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const body = await c.req.json<BacktestConfig>();
+  const result = await runBacktest(body);
+  return c.json(result);
+});
+
+// Admin: Compare strategies
+app.post('/admin/backtest/compare', async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const configs = await c.req.json<BacktestConfig[]>();
+  const results = await compareStrategies(configs);
+  return c.json({ results });
+});
+
+// Admin: Trigger daily metrics snapshot
+app.post('/admin/metrics', async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const result = await triggerDailyMetrics();
+  return c.json(result, result.success ? 200 : 409);
+});
+
+// Admin: Trigger closing odds capture
+app.post('/admin/closing-odds', async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const result = await triggerClosingOddsCapture();
+  return c.json(result, result.success ? 200 : 409);
+});
+
+// Admin: Full model report
+app.get('/admin/model-report', async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const from = c.req.query('from') ? new Date(c.req.query('from')!) : undefined;
+  const to = c.req.query('to') ? new Date(c.req.query('to')!) : undefined;
+  const report = await generateModelReport({ from, to });
+  return c.json(report);
 });
 
 // 404 handler

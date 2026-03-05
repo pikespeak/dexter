@@ -11,14 +11,19 @@
 
 import { runDailyPipeline } from './services/prediction-pipeline.js';
 import { trackResults } from './services/result-tracker.js';
+import { saveDailyMetrics, captureClosingOdds } from './services/calibration.js';
 
 let isPipelineActive = false;
 let isTrackerActive = false;
 let isRePredictionActive = false;
+let isMetricsActive = false;
+let isClosingOddsActive = false;
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let lastPipelineRun: Date | null = null;
 let lastTrackerRun: Date | null = null;
 let lastRePredictionRun: Date | null = null;
+let lastMetricsRun: Date | null = null;
+let lastClosingOddsRun: Date | null = null;
 let consecutiveFailures = 0;
 
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -44,6 +49,16 @@ function checkScheduledTasks() {
   // Hourly result tracking (at minute 30)
   if (minute === 30 && !isTrackerActive) {
     triggerResultTracking();
+  }
+
+  // Daily metrics snapshot at 23:00 UTC
+  if (hour === 23 && minute === 0 && !isMetricsActive) {
+    triggerDailyMetrics();
+  }
+
+  // Closing odds capture every 2 hours (at minute 15)
+  if (minute === 15 && hour % 2 === 0 && !isClosingOddsActive) {
+    triggerClosingOddsCapture();
   }
 }
 
@@ -150,6 +165,61 @@ export async function triggerResultTracking(): Promise<{
 }
 
 /**
+ * Trigger daily metrics snapshot.
+ */
+export async function triggerDailyMetrics(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (isMetricsActive) {
+    return { success: false, error: 'Metrics snapshot is already running' };
+  }
+
+  isMetricsActive = true;
+  console.log('[Cron] Daily metrics snapshot triggered');
+
+  try {
+    await saveDailyMetrics();
+    lastMetricsRun = new Date();
+    return { success: true };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Cron] Daily metrics failed: ${msg}`);
+    return { success: false, error: msg };
+  } finally {
+    isMetricsActive = false;
+  }
+}
+
+/**
+ * Trigger closing odds capture for upcoming matches.
+ */
+export async function triggerClosingOddsCapture(): Promise<{
+  success: boolean;
+  updated?: number;
+  error?: string;
+}> {
+  if (isClosingOddsActive) {
+    return { success: false, error: 'Closing odds capture is already running' };
+  }
+
+  isClosingOddsActive = true;
+  console.log('[Cron] Closing odds capture triggered');
+
+  try {
+    const updated = await captureClosingOdds();
+    lastClosingOddsRun = new Date();
+    return { success: true, updated };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Cron] Closing odds capture failed: ${msg}`);
+    return { success: false, error: msg };
+  } finally {
+    isClosingOddsActive = false;
+  }
+}
+
+/**
  * Start the cron scheduler.
  */
 export function startCronScheduler() {
@@ -158,7 +228,7 @@ export function startCronScheduler() {
     return;
   }
 
-  console.log('[Cron] Scheduler started — pipeline: 06:00 UTC, re-prediction: 10:00 UTC, result tracking: hourly');
+  console.log('[Cron] Scheduler started — pipeline: 06:00 UTC, re-prediction: 10:00 UTC, result tracking: hourly, metrics: 23:00 UTC, closing odds: every 2h');
   schedulerTimer = setInterval(checkScheduledTasks, 60_000);
   checkScheduledTasks();
 }
@@ -183,9 +253,13 @@ export function getSchedulerStatus() {
     pipelineRunning: isPipelineActive,
     trackerRunning: isTrackerActive,
     rePredictionRunning: isRePredictionActive,
+    metricsRunning: isMetricsActive,
+    closingOddsRunning: isClosingOddsActive,
     lastPipelineRun,
     lastTrackerRun,
     lastRePredictionRun,
+    lastMetricsRun,
+    lastClosingOddsRun,
     consecutiveFailures,
   };
 }

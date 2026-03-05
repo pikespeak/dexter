@@ -123,6 +123,31 @@ export const valueBets = pgTable('value_bets', {
   index('value_bets_match_id_idx').on(table.matchId),
 ]);
 
+// Model metrics — daily snapshots of model performance
+export const modelMetrics = pgTable('model_metrics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  date: timestamp('date').notNull(),
+  modelVersion: varchar('model_version', { length: 50 }).notNull(),
+  leagueId: integer('league_id'),
+  sampleSize: integer('sample_size').notNull(),
+  accuracy1X2: decimal('accuracy_1x2', { precision: 5, scale: 4 }),
+  accuracyOU: decimal('accuracy_ou', { precision: 5, scale: 4 }),
+  accuracyBTTS: decimal('accuracy_btts', { precision: 5, scale: 4 }),
+  avgBrierScore: decimal('avg_brier_score', { precision: 8, scale: 6 }),
+  totalProfitLoss: decimal('total_profit_loss', { precision: 10, scale: 2 }),
+  roi: decimal('roi', { precision: 8, scale: 4 }),
+  calibrationSlope: decimal('calibration_slope', { precision: 5, scale: 4 }),
+  avgClv: decimal('avg_clv', { precision: 8, scale: 6 }),
+  poissonBrier: decimal('poisson_brier', { precision: 8, scale: 6 }),
+  llmBrier: decimal('llm_brier', { precision: 8, scale: 6 }),
+  poissonAccuracy: decimal('poisson_accuracy', { precision: 5, scale: 4 }),
+  llmAccuracy: decimal('llm_accuracy', { precision: 5, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('model_metrics_date_idx').on(table.date),
+  index('model_metrics_model_version_idx').on(table.modelVersion),
+]);
+
 // Push notification tokens table
 export const pushTokens = pgTable('push_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),

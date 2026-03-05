@@ -1,32 +1,119 @@
 import { Hono } from 'hono';
-import { eq, count, avg, sql } from 'drizzle-orm';
-import { db, schema } from '../db/index.js';
+import {
+  getOverallPerformance,
+  getMarketBreakdown,
+  getLeagueBreakdown,
+  getCalibrationData,
+  getBrierScoreAnalysis,
+  getValueBetROI,
+  getPoissonVsLlmAnalysis,
+  getCLVAnalysis,
+  getCalibrationCurve,
+  getDashboard,
+  type DateFilters,
+} from '../services/analytics.js';
 
 export const statsRoutes = new Hono();
 
-// GET /stats/performance - Public performance stats (builds trust)
+// ---------------------------------------------------------------------------
+// Helper: parse query filters
+// ---------------------------------------------------------------------------
+
+function parseFilters(query: Record<string, string | undefined>): DateFilters {
+  const filters: DateFilters = {};
+  if (query.from) filters.from = new Date(query.from);
+  if (query.to) filters.to = new Date(query.to);
+  if (query.league_id) filters.leagueId = Number(query.league_id);
+  if (query.model_version) filters.modelVersion = query.model_version;
+  return filters;
+}
+
+// ---------------------------------------------------------------------------
+// GET /stats/performance — Extended overall statistics
+// ---------------------------------------------------------------------------
+
 statsRoutes.get('/performance', async (c) => {
-  // Overall accuracy
-  const [accuracy] = await db
-    .select({
-      total: count(),
-      correct: count(sql`CASE WHEN ${schema.performance.wasCorrect} = true THEN 1 END`),
-      avgProfitLoss: avg(schema.performance.profitLoss),
-    })
-    .from(schema.performance);
+  const filters = parseFilters(c.req.query());
+  const performance = await getOverallPerformance(filters);
+  return c.json({ performance });
+});
 
-  const totalPredictions = Number(accuracy?.total || 0);
-  const correctPredictions = Number(accuracy?.correct || 0);
-  const hitRate = totalPredictions > 0 ? (correctPredictions / totalPredictions * 100).toFixed(1) : '0.0';
-  const avgPL = accuracy?.avgProfitLoss || '0.00';
+// ---------------------------------------------------------------------------
+// GET /stats/markets — Per-market breakdown (1X2, O/U, BTTS, Exact)
+// ---------------------------------------------------------------------------
 
-  return c.json({
-    performance: {
-      totalPredictions,
-      correctPredictions,
-      hitRate: `${hitRate}%`,
-      averageProfitLoss: avgPL,
-      lastUpdated: new Date().toISOString(),
-    },
-  });
+statsRoutes.get('/markets', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const markets = await getMarketBreakdown(filters);
+  return c.json({ markets });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/leagues — Per-league breakdown
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/leagues', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const leagues = await getLeagueBreakdown(filters);
+  return c.json({ leagues });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/calibration — Calibration curve data
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/calibration', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const calibration = await getCalibrationCurve(filters);
+  return c.json({ calibration });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/brier — Brier score decomposition
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/brier', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const brier = await getBrierScoreAnalysis(filters);
+  return c.json({ brier });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/value-bets — Value bet ROI
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/value-bets', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const valueBets = await getValueBetROI(filters);
+  return c.json({ valueBets });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/poisson-vs-llm — Poisson baseline vs LLM comparison
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/poisson-vs-llm', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const comparison = await getPoissonVsLlmAnalysis(filters);
+  return c.json({ comparison });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/clv — Closing Line Value analysis
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/clv', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const clv = await getCLVAnalysis(filters);
+  return c.json({ clv });
+});
+
+// ---------------------------------------------------------------------------
+// GET /stats/dashboard — All metrics combined (admin overview)
+// ---------------------------------------------------------------------------
+
+statsRoutes.get('/dashboard', async (c) => {
+  const filters = parseFilters(c.req.query());
+  const dashboard = await getDashboard(filters);
+  return c.json({ dashboard });
 });
