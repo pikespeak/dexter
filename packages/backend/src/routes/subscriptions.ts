@@ -4,11 +4,11 @@ import { db, schema } from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 import type { JWTPayload } from '../middleware/auth.js';
 
-export const subscriptionRoutes = new Hono();
+export const subscriptionRoutes = new Hono<{ Variables: { user: JWTPayload } }>();
 
 // GET /subscriptions/status - Current subscription status
 subscriptionRoutes.get('/status', authMiddleware, async (c) => {
-  const user = c.get('user') as JWTPayload;
+  const user = c.get('user');
 
   const [sub] = await db
     .select()

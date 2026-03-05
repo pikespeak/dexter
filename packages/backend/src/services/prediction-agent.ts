@@ -9,14 +9,22 @@
  */
 
 import { z } from 'zod';
-import { callFootballApi, callOddsApi } from '../../../../src/tools/sports/api.js';
-import { getSeasonYear } from '../utils/season.js';
+import { callFootballApi, callOddsApi } from '../lib/sports-api.js';
+import { getPrimaryApiFootballSeason } from '../utils/api-football-season.js';
 import {
   calculatePoissonPrediction,
   extractTeamGoalStats,
   formatPoissonForPrompt,
   type PoissonPrediction,
 } from './statistical-model.js';
+import { applyWebIntelAdjustments, getContextEnrichment } from './web-intel/index.js';
+import {
+  LocationContextSchema,
+  WeatherContextSchema,
+  WebFeatureSnapshotSchema,
+  WebSourceMetadataSchema,
+  type ContextEnrichment,
+} from './context-enrichment/types.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -53,6 +61,12 @@ export const PredictionResultSchema = z.object({
     injuries: z.string().optional(),
     formAnalysis: z.string().optional(),
     headToHeadInsight: z.string().optional(),
+    webSummary: z.string().optional(),
+    webSignals: z.array(z.string()).optional(),
+    webSources: z.array(WebSourceMetadataSchema).optional(),
+    webFeatureSnapshot: WebFeatureSnapshotSchema.optional(),
+    weatherContext: WeatherContextSchema.optional(),
+    locationContext: LocationContextSchema.optional(),
   }),
 });
 
@@ -122,6 +136,8 @@ interface MatchInput {
   awayTeamId: number;
   leagueId: number;
   leagueName: string;
+  kickoff?: Date;
+  venue?: string;
 }
 
 interface GatheredData {
@@ -134,10 +150,12 @@ interface GatheredData {
   odds: unknown;
   apiPredictions: unknown;
   xgData: { homeXg: Array<{ xg: string; fixture: string }>; awayXg: Array<{ xg: string; fixture: string }> } | null;
+  homeRecentFixtures: unknown;
+  awayRecentFixtures: unknown;
 }
 
 export async function gatherMatchData(match: MatchInput): Promise<GatheredData> {
-  const season = getSeasonYear();
+  const season = getPrimaryApiFootballSeason(match.kickoff ?? new Date());
 
   // First batch: main data
   const results = await Promise.allSettled([
@@ -215,6 +233,8 @@ export async function gatherMatchData(match: MatchInput): Promise<GatheredData> 
     odds: extract(results[5]),
     apiPredictions: extract(results[6]),
     xgData,
+    homeRecentFixtures: extract(results[7]),
+    awayRecentFixtures: extract(results[8]),
   };
 }
 
@@ -306,6 +326,7 @@ Use these as your starting point and adjust based on match-specific data:
    - 60-80: Good data, stronger adjustments justified.
    - >80: Exceptional data convergence (rare).
 10. When a statistical baseline (Poisson model) is provided, use it as your anchor and adjust with qualitative factors.
+11. If web intelligence signals are provided, treat them as secondary context; avoid large shifts unless strongly corroborated.
 
 ## IMPORTANT
 - Be data-driven. Do NOT over-adjust from base rates without strong evidence.
@@ -338,6 +359,15 @@ export async function generateMatchPrediction(match: MatchInput): Promise<Predic
   console.log(`[PredictionAgent] Gathering data for ${match.homeTeam} vs ${match.awayTeam}...`);
   const data = await gatherMatchData(match);
 
+  const enrichment = await getContextEnrichment({
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    leagueName: match.leagueName,
+    kickoff: match.kickoff,
+    homeRecentFixtures: data.homeRecentFixtures,
+    awayRecentFixtures: data.awayRecentFixtures,
+  });
+
   // Calculate Poisson baseline from team stats
   let poissonBaseline: PoissonPrediction | undefined;
   const homeGoalStats = extractTeamGoalStats(data.homeStats);
@@ -350,7 +380,7 @@ export async function generateMatchPrediction(match: MatchInput): Promise<Predic
     console.log(`[PredictionAgent] Insufficient stats for Poisson model — LLM will use base rates only`);
   }
 
-  const prompt = buildPredictionPrompt(match, data, poissonBaseline);
+  const prompt = buildPredictionPrompt(match, data, poissonBaseline, enrichment);
   const messages: LlmMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: prompt },
@@ -366,12 +396,16 @@ export async function generateMatchPrediction(match: MatchInput): Promise<Predic
     parsed = parseLlmResponse(rawResponse);
   }
 
-  // Normalize and fill defaults
+  // Apply web-intel adjustments with strict caps (if available), then normalize/fill defaults.
   const raw = parsed as Record<string, unknown>;
+  if (enrichment.webIntel) {
+    applyWebIntelAdjustments(raw, enrichment.webIntel);
+  }
   normalizeProbabilities(raw);
   fillDefaultProbs(raw, poissonBaseline);
+  attachContextToAnalysis(raw, enrichment);
 
-  const result = PredictionResultSchema.parse(parsed);
+  const result = PredictionResultSchema.parse(raw);
   return { ...result, poissonBaseline };
 }
 
@@ -500,7 +534,98 @@ function fillDefaultProbs(raw: Record<string, unknown>, poissonBaseline?: Poisso
   }
 }
 
-function buildPredictionPrompt(match: MatchInput, data: GatheredData, poissonBaseline?: PoissonPrediction): string {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function attachContextToAnalysis(raw: Record<string, unknown>, enrichment: ContextEnrichment): void {
+  if (!isRecord(raw.analysis)) return;
+
+  if (enrichment.webIntel) {
+    raw.analysis.webSummary = enrichment.webIntel.summary;
+    raw.analysis.webSignals = enrichment.webIntel.signals;
+    raw.analysis.webSources = enrichment.webIntel.sources;
+    raw.analysis.webFeatureSnapshot = enrichment.webIntel.featureSnapshot;
+  }
+
+  if (enrichment.weatherContext) {
+    raw.analysis.weatherContext = enrichment.weatherContext;
+  }
+
+  if (enrichment.locationContext) {
+    raw.analysis.locationContext = enrichment.locationContext;
+  }
+}
+
+function extractWebIntelBlock(webIntel: ContextEnrichment['webIntel']): string {
+  if (!webIntel) return 'No web-intel data';
+
+  const lines: string[] = [];
+  lines.push(`Summary: ${webIntel.summary}`);
+
+  if (webIntel.signals.length > 0) {
+    lines.push('Signals:');
+    for (const signal of webIntel.signals.slice(0, 6)) {
+      lines.push(`- ${signal}`);
+    }
+  }
+
+  if (webIntel.sources.length > 0) {
+    lines.push('Top Sources:');
+    for (const source of webIntel.sources.slice(0, 5)) {
+      lines.push(`- [${source.sourceType}] ${source.title} (${source.domain})`);
+    }
+  }
+
+  lines.push(
+    `Web feature snapshot: availability(H/A) ${webIntel.featureSnapshot.availabilityHome}/${webIntel.featureSnapshot.availabilityAway}, ` +
+    `sentiment(H/A) ${webIntel.featureSnapshot.sentimentIndexHome}/${webIntel.featureSnapshot.sentimentIndexAway}, ` +
+    `rest(H/A) ${webIntel.featureSnapshot.restDaysHome}/${webIntel.featureSnapshot.restDaysAway}`,
+  );
+
+  return lines.join('\n');
+}
+
+function extractWeatherContext(weatherContext: ContextEnrichment['weatherContext']): string {
+  if (!weatherContext) return 'No weather context';
+  if (weatherContext.status !== 'available') {
+    return `Status: ${weatherContext.status}`;
+  }
+
+  return [
+    `Status: ${weatherContext.status}`,
+    `Temp C: ${weatherContext.temperatureC ?? '?'}`,
+    `Precip mm: ${weatherContext.precipMm ?? '?'}`,
+    `Wind km/h: ${weatherContext.windKph ?? '?'}`,
+    `Humidity %: ${weatherContext.humidityPct ?? '?'}`,
+    `Severity: ${weatherContext.weatherSeverityIndex ?? '?'}`,
+    `Uncertainty: ${weatherContext.weatherUncertainty ?? '?'}`,
+  ].join('\n');
+}
+
+function extractLocationContext(locationContext: ContextEnrichment['locationContext']): string {
+  if (!locationContext) return 'No location context';
+  if (locationContext.status !== 'available') {
+    return `Status: ${locationContext.status}`;
+  }
+
+  return [
+    `Status: ${locationContext.status}`,
+    `Coordinates: ${locationContext.lat ?? '?'}, ${locationContext.lon ?? '?'}`,
+    `Altitude m: ${locationContext.altitudeM ?? '?'}`,
+    `Timezone: ${locationContext.timezone ?? '?'}`,
+    `Timezone diff hours: ${locationContext.timezoneDiffHours ?? '?'}`,
+    `Travel km: ${locationContext.travelDistanceKm ?? '?'}`,
+    `Kickoff local hour: ${locationContext.kickoffLocalHour ?? '?'}`,
+  ].join('\n');
+}
+
+function buildPredictionPrompt(
+  match: MatchInput,
+  data: GatheredData,
+  poissonBaseline: PoissonPrediction | undefined,
+  enrichment: ContextEnrichment,
+): string {
   const sections: string[] = [
     `## Match: ${match.homeTeam} vs ${match.awayTeam}`,
     `League: ${match.leagueName} (ID: ${match.leagueId})`,
@@ -565,6 +690,24 @@ function buildPredictionPrompt(match: MatchInput, data: GatheredData, poissonBas
 
   if (poissonBaseline) {
     sections.push(formatPoissonForPrompt(poissonBaseline));
+    sections.push('');
+  }
+
+  if (enrichment.webIntel) {
+    sections.push('## Web Intelligence (News + Social Signals)');
+    sections.push(extractWebIntelBlock(enrichment.webIntel));
+    sections.push('');
+  }
+
+  if (enrichment.weatherContext?.status === 'available') {
+    sections.push('## Weather Context');
+    sections.push(extractWeatherContext(enrichment.weatherContext));
+    sections.push('');
+  }
+
+  if (enrichment.locationContext?.status === 'available') {
+    sections.push('## Location Context');
+    sections.push(extractLocationContext(enrichment.locationContext));
     sections.push('');
   }
 

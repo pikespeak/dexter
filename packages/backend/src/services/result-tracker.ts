@@ -18,7 +18,7 @@
 
 import { eq, and, isNull, lte } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
-import { callFootballApi } from '../../../../src/tools/sports/api.js';
+import { callFootballApi } from '../lib/sports-api.js';
 
 interface FinishedFixture {
   fixture: {

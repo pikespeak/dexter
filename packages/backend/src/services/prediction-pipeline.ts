@@ -11,26 +11,16 @@
  * Designed to run as a cron job (daily at 06:00 UTC).
  */
 
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, inArray } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
-import { callFootballApi, callOddsApi } from '../../../../src/tools/sports/api.js';
+import { callFootballApi, callOddsApi } from '../lib/sports-api.js';
 import { generateMatchPrediction, type PredictionResult } from './prediction-agent.js';
 import { type PoissonPrediction } from './statistical-model.js';
-import { getSeasonYear } from '../utils/season.js';
+import { resolveApiFootballSeasons } from '../utils/api-football-season.js';
+import { config } from '../config.js';
+import { getConfiguredLeagueIds, getConfiguredLeagues, parseLeagueIdsCsv } from './fixture-sync.js';
 
 type FullPredictionResult = PredictionResult & { poissonBaseline?: PoissonPrediction };
-
-// ---------------------------------------------------------------------------
-// League Configuration
-// ---------------------------------------------------------------------------
-
-const TOP_LEAGUES = [
-  { id: 39, name: 'Premier League' },
-  { id: 140, name: 'La Liga' },
-  { id: 78, name: 'Bundesliga' },
-  { id: 135, name: 'Serie A' },
-  { id: 61, name: 'Ligue 1' },
-];
 
 // ---------------------------------------------------------------------------
 // Main Pipeline
@@ -52,7 +42,7 @@ export async function runDailyPipeline(): Promise<PipelineResult> {
     errors: [],
   };
 
-  // Step 1: Fetch upcoming matches for the next 48 hours
+  // Step 1: Fetch upcoming matches for the configured lookahead window
   const matches = await fetchUpcomingMatches();
   result.matchesFound = matches.length;
   console.log(`[Pipeline] Found ${matches.length} upcoming matches`);
@@ -128,44 +118,152 @@ interface FixtureResponse {
   };
 }
 
+function flattenApiErrors(errors: unknown): string[] {
+  if (!errors) return [];
+
+  if (Array.isArray(errors)) {
+    return errors.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  }
+
+  if (typeof errors === 'object') {
+    return Object.entries(errors as Record<string, unknown>)
+      .filter(([, value]) => typeof value === 'string' && value.length > 0)
+      .map(([key, value]) => `${key}: ${value}`);
+  }
+
+  return [];
+}
+
+function getPipelineLeagueIds(): number[] {
+  const fromPipelineEnv = parseLeagueIdsCsv(config.PIPELINE_LEAGUE_IDS);
+  if (fromPipelineEnv.length > 0) return fromPipelineEnv;
+  return getConfiguredLeagueIds();
+}
+
+function getPipelineLeagues(): Array<{ id: number; name: string }> {
+  return getConfiguredLeagues(getPipelineLeagueIds());
+}
+
 async function fetchUpcomingMatches(): Promise<MatchData[]> {
+  const syncedMatches = await fetchUpcomingMatchesFromDb();
+  if (syncedMatches.length > 0) {
+    console.log(`[Pipeline] Using ${syncedMatches.length} upcoming matches from DB fixture sync`);
+    return syncedMatches;
+  }
+
+  if (!config.PIPELINE_DIRECT_FETCH_ENABLED) {
+    console.warn('[Pipeline] Direct API fallback disabled via PIPELINE_DIRECT_FETCH_ENABLED=false');
+    return [];
+  }
+
+  console.warn('[Pipeline] No synced matches in DB. Falling back to direct API-Football fetch.');
+  return fetchUpcomingMatchesFromApi();
+}
+
+async function fetchUpcomingMatchesFromDb(): Promise<MatchData[]> {
+  const now = new Date();
+  const lookaheadHours = config.PIPELINE_MATCH_LOOKAHEAD_HOURS;
+  const inLookaheadWindow = new Date(now.getTime() + lookaheadHours * 60 * 60 * 1000);
+  const topLeagueIds = getPipelineLeagueIds();
+
+  const matches = await db
+    .select()
+    .from(schema.matches)
+    .where(
+      and(
+        gte(schema.matches.kickoff, now),
+        lte(schema.matches.kickoff, inLookaheadWindow),
+        eq(schema.matches.status, 'scheduled'),
+        inArray(schema.matches.leagueId, topLeagueIds)
+      )
+    )
+    .orderBy(schema.matches.kickoff);
+
+  return matches.map((match) => ({
+    fixtureId: match.apiFootballId,
+    homeTeam: match.homeTeam,
+    homeTeamId: match.homeTeamId,
+    awayTeam: match.awayTeam,
+    awayTeamId: match.awayTeamId,
+    leagueId: match.leagueId,
+    leagueName: match.leagueName,
+    kickoff: match.kickoff,
+    venue: match.venue || 'Unknown',
+  }));
+}
+
+async function fetchUpcomingMatchesFromApi(): Promise<MatchData[]> {
   console.log('[Pipeline] Fetching upcoming matches from API-Football...');
 
   const now = new Date();
-  const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+  const lookaheadHours = config.PIPELINE_MATCH_LOOKAHEAD_HOURS;
+  const inLookaheadWindow = new Date(now.getTime() + lookaheadHours * 60 * 60 * 1000);
+  const pipelineLeagues = getPipelineLeagues();
 
   const fromDate = now.toISOString().split('T')[0];
-  const toDate = in48Hours.toISOString().split('T')[0];
-  const season = getSeasonYear();
+  const toDate = inLookaheadWindow.toISOString().split('T')[0];
+  const seasons = resolveApiFootballSeasons(now, inLookaheadWindow);
 
-  const allMatches: MatchData[] = [];
+  const requestSpecs: Array<{ league: { id: number; name: string }; season: number | null }> = [];
+  for (const league of pipelineLeagues) {
+    if (seasons.length === 0) {
+      requestSpecs.push({ league, season: null });
+      continue;
+    }
 
-  // Fetch from each top league in parallel
+    for (const season of seasons) {
+      requestSpecs.push({ league, season });
+    }
+  }
+
+  const allMatchesByFixtureId = new Map<number, MatchData>();
+
+  // Fetch from each configured league/season in parallel
   const leagueResults = await Promise.allSettled(
-    TOP_LEAGUES.map((league) =>
-      callFootballApi('/fixtures', {
-        league: league.id,
-        season,
+    requestSpecs.map((requestSpec) => {
+      const query: Record<string, string | number> = {
+        league: requestSpec.league.id,
         from: fromDate,
         to: toDate,
-        status: 'NS', // Not Started
-      })
-    )
+        status: config.PIPELINE_API_STATUS_FILTER,
+      };
+
+      if (requestSpec.season != null) {
+        query.season = requestSpec.season;
+      }
+
+      return callFootballApi('/fixtures', query);
+    })
   );
 
   for (let i = 0; i < leagueResults.length; i++) {
     const result = leagueResults[i];
+    const requestSpec = requestSpecs[i];
+    const seasonLabel = requestSpec.season == null ? 'all' : String(requestSpec.season);
+
     if (result.status === 'rejected') {
-      console.error(`[Pipeline] Failed to fetch ${TOP_LEAGUES[i].name}: ${result.reason}`);
+      console.error(
+        `[Pipeline] Failed to fetch ${requestSpec.league.name} (season=${seasonLabel}): ${result.reason}`
+      );
       continue;
     }
 
-    const fixtures = (result.value.data as { response?: FixtureResponse[] }).response || [];
+    const payload = result.value.data as { response?: FixtureResponse[]; errors?: unknown };
+    const apiErrors = flattenApiErrors(payload.errors);
+    if (apiErrors.length > 0) {
+      console.error(
+        `[Pipeline] API error for ${requestSpec.league.name} (season=${seasonLabel}): ${apiErrors.join('; ')}`
+      );
+      continue;
+    }
+
+    const fixtures = payload.response || [];
 
     for (const fixture of fixtures) {
-      if (fixture.fixture.status.short !== 'NS') continue;
+      const shortStatus = fixture.fixture.status.short?.toUpperCase();
+      if (shortStatus !== 'NS' && shortStatus !== 'TBD') continue;
 
-      allMatches.push({
+      allMatchesByFixtureId.set(fixture.fixture.id, {
         fixtureId: fixture.fixture.id,
         homeTeam: fixture.teams.home.name,
         homeTeamId: fixture.teams.home.id,
@@ -178,6 +276,8 @@ async function fetchUpcomingMatches(): Promise<MatchData[]> {
       });
     }
   }
+
+  const allMatches = Array.from(allMatchesByFixtureId.values());
 
   // Sort by kickoff time
   allMatches.sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime());
@@ -198,6 +298,8 @@ async function generatePrediction(match: MatchData): Promise<FullPredictionResul
     awayTeamId: match.awayTeamId,
     leagueId: match.leagueId,
     leagueName: match.leagueName,
+    kickoff: match.kickoff,
+    venue: match.venue,
   });
 }
 
@@ -337,16 +439,26 @@ async function assignTiers(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 // Edge threshold — higher than 5% to reduce false positives with uncalibrated probs
-const VALUE_BET_EDGE_THRESHOLD = 0.08; // 8%
+const VALUE_BET_EDGE_THRESHOLD = config.VALUE_BET_EDGE_THRESHOLD;
 
-// The Odds API sport keys for our leagues
-const ODDS_API_SPORT_KEYS: Record<number, string> = {
-  39: 'soccer_epl',
-  140: 'soccer_spain_la_liga',
-  78: 'soccer_germany_bundesliga',
-  135: 'soccer_italy_serie_a',
-  61: 'soccer_france_ligue_one',
-};
+function parseOddsApiSportKeys(raw: string): Record<number, string> {
+  const mapping: Record<number, string> = {};
+
+  for (const pair of raw.split(',')) {
+    const [leagueIdRaw, sportKeyRaw] = pair.split(':');
+    if (!leagueIdRaw || !sportKeyRaw) continue;
+
+    const leagueId = Number.parseInt(leagueIdRaw.trim(), 10);
+    const sportKey = sportKeyRaw.trim();
+    if (!Number.isFinite(leagueId) || leagueId <= 0 || sportKey.length === 0) continue;
+
+    mapping[leagueId] = sportKey;
+  }
+
+  return mapping;
+}
+
+const ODDS_API_SPORT_KEYS = parseOddsApiSportKeys(config.ODDS_API_SPORT_KEYS);
 
 interface OddsOutcome {
   name: string;
@@ -376,8 +488,8 @@ async function runValueBetAnalysis(): Promise<number> {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 2);
+  const windowEnd = new Date(today);
+  windowEnd.setDate(windowEnd.getDate() + config.VALUE_BET_LOOKAHEAD_DAYS);
 
   const predictionsWithMatches = await db
     .select({
@@ -386,7 +498,7 @@ async function runValueBetAnalysis(): Promise<number> {
     })
     .from(schema.predictions)
     .innerJoin(schema.matches, eq(schema.predictions.matchId, schema.matches.id))
-    .where(and(gte(schema.matches.kickoff, today), lte(schema.matches.kickoff, tomorrow)));
+    .where(and(gte(schema.matches.kickoff, today), lte(schema.matches.kickoff, windowEnd)));
 
   // Fetch odds from The Odds API per league (much richer than API-Football odds)
   const oddsCache = new Map<number, OddsEvent[]>();
@@ -400,9 +512,9 @@ async function runValueBetAnalysis(): Promise<number> {
 
     try {
       const oddsResult = await callOddsApi(`/sports/${sportKey}/odds`, {
-        regions: 'eu,uk',
-        markets: 'h2h,totals,btts',
-        oddsFormat: 'decimal',
+        regions: config.ODDS_API_REGIONS,
+        markets: config.ODDS_API_MARKETS,
+        oddsFormat: config.ODDS_API_ODDS_FORMAT,
       });
 
       const events = (oddsResult.data as unknown) as OddsEvent[] | undefined;
@@ -524,8 +636,10 @@ async function runValueBetAnalysis(): Promise<number> {
         if (edge > VALUE_BET_EDGE_THRESHOLD) {
           const b = best.odds - 1;
           const kellyFraction = (b * bet.ourProb - (1 - bet.ourProb)) / b;
-          // Eighth-Kelly for safety with uncalibrated probs
-          const kellyStake = Math.max(0, Math.min(kellyFraction * 0.125, 0.10));
+          const kellyStake = Math.max(
+            0,
+            Math.min(kellyFraction * config.VALUE_BET_KELLY_MULTIPLIER, config.VALUE_BET_MAX_STAKE)
+          );
 
           // Upsert value bet
           await db

@@ -7,11 +7,10 @@ COPY package.json bun.lockb* ./
 COPY packages/backend/package.json packages/backend/
 RUN cd packages/backend && bun install --frozen-lockfile
 
-# Build stage (copy full source for shared imports)
+# Runtime image
 FROM base AS runner
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/backend/node_modules ./packages/backend/node_modules
-COPY src/ ./src/
 COPY packages/backend/ ./packages/backend/
 
 WORKDIR /app/packages/backend

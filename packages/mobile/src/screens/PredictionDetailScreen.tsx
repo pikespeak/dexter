@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Chip, IconButton } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -40,6 +40,38 @@ interface DetailData {
       kellyStake?: number;
     }>;
   };
+}
+
+interface WebSourceMetadata {
+  url: string;
+  title: string;
+  domain: string;
+  sourceType: 'news' | 'official' | 'social';
+  entityType: 'match' | 'club' | 'player' | 'coach';
+  publishedAt: string | null;
+  relevance: number;
+  sentiment: number;
+}
+
+interface WeatherContext {
+  status: 'disabled' | 'unavailable' | 'available';
+  temperatureC?: number;
+  precipMm?: number;
+  windKph?: number;
+  humidityPct?: number;
+  weatherSeverityIndex?: number;
+  weatherUncertainty?: number;
+}
+
+interface LocationContext {
+  status: 'disabled' | 'unavailable' | 'available';
+  lat?: number;
+  lon?: number;
+  altitudeM?: number;
+  timezone?: string;
+  timezoneDiffHours?: number;
+  travelDistanceKm?: number;
+  kickoffLocalHour?: number;
 }
 
 export function PredictionDetailScreen() {
@@ -109,6 +141,24 @@ export function PredictionDetailScreen() {
     injuries?: string;
     formAnalysis?: string;
     headToHeadInsight?: string;
+    webSummary?: string;
+    webSignals?: string[];
+    webSources?: WebSourceMetadata[];
+    weatherContext?: WeatherContext;
+    locationContext?: LocationContext;
+  };
+
+  const showWeatherLocation =
+    analysis.weatherContext?.status === 'available' ||
+    analysis.locationContext?.status === 'available';
+
+  const openSource = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) await Linking.openURL(url);
+    } catch {
+      // Ignore URL open errors in UI layer.
+    }
   };
 
   return (
@@ -246,6 +296,71 @@ export function PredictionDetailScreen() {
         <View style={styles.analysisSection}>
           <Text style={styles.sectionTitle}>Injuries</Text>
           <Text style={styles.analysisText}>{analysis.injuries}</Text>
+        </View>
+      )}
+
+      {(analysis.webSummary || (analysis.webSignals && analysis.webSignals.length > 0) || (analysis.webSources && analysis.webSources.length > 0)) && (
+        <View style={styles.analysisSection}>
+          <Text style={styles.sectionTitle}>News & Social Signals</Text>
+          {analysis.webSummary && <Text style={styles.analysisText}>{analysis.webSummary}</Text>}
+
+          {analysis.webSignals && analysis.webSignals.length > 0 && (
+            <View style={styles.webSignalsWrap}>
+              {analysis.webSignals.map((signal, i) => (
+                <View key={`${signal}-${i}`} style={styles.factorRow}>
+                  <View style={styles.factorDot} />
+                  <Text style={styles.factorText}>{signal}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {analysis.webSources && analysis.webSources.length > 0 && (
+            <View style={styles.webSourcesWrap}>
+              {analysis.webSources.map((source, i) => (
+                <Pressable
+                  key={`${source.url}-${i}`}
+                  onPress={() => void openSource(source.url)}
+                  style={styles.webSourceItem}
+                >
+                  <View style={styles.webSourceHeader}>
+                    <View style={styles.webSourceBadge}>
+                      <Text style={styles.webSourceBadgeText}>{source.sourceType.toUpperCase()}</Text>
+                    </View>
+                    <Text style={styles.webSourceDomain}>{source.domain}</Text>
+                  </View>
+                  <Text style={styles.webSourceTitle} numberOfLines={2}>{source.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {showWeatherLocation && (
+        <View style={styles.analysisSection}>
+          <Text style={styles.sectionTitle}>Weather & Location Context</Text>
+          {analysis.weatherContext?.status === 'available' && (
+            <>
+              <Text style={styles.analysisText}>
+                Weather: {analysis.weatherContext.temperatureC ?? '?'}C, Precip {analysis.weatherContext.precipMm ?? '?'}mm,
+                Wind {analysis.weatherContext.windKph ?? '?'}km/h, Humidity {analysis.weatherContext.humidityPct ?? '?'}%
+              </Text>
+              <Text style={styles.analysisText}>
+                Severity {analysis.weatherContext.weatherSeverityIndex ?? '?'} | Uncertainty {analysis.weatherContext.weatherUncertainty ?? '?'}
+              </Text>
+            </>
+          )}
+          {analysis.locationContext?.status === 'available' && (
+            <>
+              <Text style={styles.analysisText}>
+                Location: {analysis.locationContext.lat ?? '?'}, {analysis.locationContext.lon ?? '?'} | Altitude {analysis.locationContext.altitudeM ?? '?'}m
+              </Text>
+              <Text style={styles.analysisText}>
+                Timezone {analysis.locationContext.timezone ?? '?'} | TZ diff {analysis.locationContext.timezoneDiffHours ?? '?'}h | Travel {analysis.locationContext.travelDistanceKm ?? '?'}km
+              </Text>
+            </>
+          )}
         </View>
       )}
 
@@ -458,6 +573,48 @@ const styles = StyleSheet.create({
     ...typography.body,
     flex: 1,
     lineHeight: 20,
+  },
+  webSignalsWrap: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  webSourcesWrap: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  webSourceItem: {
+    borderWidth: 1,
+    borderColor: md3.outline + '33',
+    borderRadius: shape.medium,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: md3.surfaceContainerLow,
+  },
+  webSourceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  webSourceBadge: {
+    borderRadius: shape.small,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    backgroundColor: md3.secondaryContainer,
+  },
+  webSourceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: md3.onSecondaryContainer,
+    letterSpacing: 0.2,
+  },
+  webSourceDomain: {
+    ...typography.caption,
+    color: md3.outline,
+  },
+  webSourceTitle: {
+    ...typography.bodySmall,
+    color: md3.onSurface,
   },
   // Value Bets
   valueBetCard: {

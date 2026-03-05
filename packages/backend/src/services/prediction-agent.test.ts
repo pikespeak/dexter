@@ -103,6 +103,49 @@ describe('PredictionResultSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  test('analysis supports web and context enrichment fields', () => {
+    const result = PredictionResultSchema.safeParse({
+      ...validPrediction,
+      analysis: {
+        summary: 'Context enriched',
+        keyFactors: ['signals'],
+        homeStrengths: ['shape'],
+        awayStrengths: ['depth'],
+        webSummary: 'Recent sources suggest minor home availability edge',
+        webSignals: ['Home team appears more available'],
+        webSources: [
+          {
+            url: 'https://example.com/post-1',
+            title: 'Team update',
+            domain: 'example.com',
+            sourceType: 'news',
+            entityType: 'club',
+            publishedAt: '2026-03-04T12:00:00.000Z',
+            relevance: 0.8,
+            sentiment: 0.2,
+          },
+        ],
+        webFeatureSnapshot: {
+          availabilityHome: 92,
+          availabilityAway: 85,
+          lineupStabilityHome: 88,
+          lineupStabilityAway: 80,
+          coachChangeActiveHome: false,
+          coachChangeActiveAway: true,
+          sentimentIndexHome: 0.4,
+          sentimentIndexAway: -0.1,
+          controversyIndexHome: 0.2,
+          controversyIndexAway: 0.4,
+          restDaysHome: 4,
+          restDaysAway: 2,
+        },
+        weatherContext: { status: 'disabled' },
+        locationContext: { status: 'disabled' },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
   test('confidence capped at 100', () => {
     const result = PredictionResultSchema.safeParse({
       ...validPrediction,

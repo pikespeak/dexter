@@ -6,13 +6,15 @@
  */
 
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // Configure notification handling
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -22,7 +24,7 @@ Notifications.setNotificationHandler({
  * Register for push notifications and return the Expo push token.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
-  if (!Device.isDevice) {
+  if (!Constants.isDevice) {
     console.log('[Notifications] Push notifications require a physical device');
     return null;
   }

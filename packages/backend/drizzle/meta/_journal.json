@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1772717022721,
+      "tag": "0001_odd_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1741176000000,
+      "tag": "0001_add_prediction_quality_fields",
+      "breakpoints": false
+    }
+  ]
+}

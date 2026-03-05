@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import type { JWTPayload } from '../middleware/auth.js';
 import { registerPushToken, removePushToken } from '../services/push-notifications.js';
 
-export const pushRoutes = new Hono();
+export const pushRoutes = new Hono<{ Variables: { user: JWTPayload } }>();
 
 const registerTokenSchema = z.object({
   token: z.string().min(1),
@@ -14,7 +14,7 @@ const registerTokenSchema = z.object({
 
 // POST /push/register - Register a push notification token
 pushRoutes.post('/register', authMiddleware, zValidator('json', registerTokenSchema), async (c) => {
-  const user = c.get('user') as JWTPayload;
+  const user = c.get('user');
   const { token, platform } = c.req.valid('json');
 
   await registerPushToken(user.userId, token, platform);

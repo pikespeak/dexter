@@ -155,6 +155,9 @@ predictionRoutes.get('/history', authMiddleware, async (c) => {
 // GET /predictions/:matchId - Get detailed prediction for a match (requires Pro)
 predictionRoutes.get('/:matchId', authMiddleware, requirePlan('pro'), async (c) => {
   const matchId = c.req.param('matchId');
+  if (!matchId) {
+    return c.json({ error: 'Invalid matchId' }, 400);
+  }
 
   const [result] = await db
     .select({

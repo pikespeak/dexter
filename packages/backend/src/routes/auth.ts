@@ -5,8 +5,9 @@ import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { db, schema } from '../db/index.js';
 import { generateToken, generateRefreshToken, authMiddleware, refreshMiddleware } from '../middleware/auth.js';
+import type { JWTPayload } from '../middleware/auth.js';
 
-export const authRoutes = new Hono();
+export const authRoutes = new Hono<{ Variables: { user: JWTPayload } }>();
 
 const registerSchema = z.object({
   email: z.string().email(),

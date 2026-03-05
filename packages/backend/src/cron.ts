@@ -1,10 +1,7 @@
 /**
  * Cron Scheduler
  *
- * Runs scheduled tasks:
- * - Daily at 06:00 UTC: Prediction pipeline (main run)
- * - Daily at variable time: Re-prediction run (2-3h before first match)
- * - Hourly (at :30): Result tracking
+ * Runs scheduled tasks using env-configured UTC times.
  *
  * Includes monitoring/alerting for pipeline failures.
  */
@@ -12,18 +9,29 @@
 import { runDailyPipeline } from './services/prediction-pipeline.js';
 import { trackResults } from './services/result-tracker.js';
 import { saveDailyMetrics, captureClosingOdds } from './services/calibration.js';
+import {
+  syncUpcomingFixtures,
+  seedHistoricalFixtures,
+  getConfiguredLeagueIds,
+  type HistoricalFixtureSeedOptions,
+} from './services/fixture-sync.js';
+import { config } from './config.js';
 
 let isPipelineActive = false;
 let isTrackerActive = false;
 let isRePredictionActive = false;
 let isMetricsActive = false;
 let isClosingOddsActive = false;
+let isFixtureSyncActive = false;
+let isHistoricalSeedActive = false;
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let lastPipelineRun: Date | null = null;
 let lastTrackerRun: Date | null = null;
 let lastRePredictionRun: Date | null = null;
 let lastMetricsRun: Date | null = null;
 let lastClosingOddsRun: Date | null = null;
+let lastFixtureSyncRun: Date | null = null;
+let lastHistoricalSeedRun: Date | null = null;
 let consecutiveFailures = 0;
 
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -36,28 +44,42 @@ function checkScheduledTasks() {
   const hour = now.getUTCHours();
   const minute = now.getUTCMinutes();
 
-  // Daily pipeline at 06:00 UTC
-  if (hour === 6 && minute === 0 && !isPipelineActive) {
+  // Daily pipeline
+  if (hour === config.CRON_PIPELINE_HOUR_UTC && minute === 0 && !isPipelineActive) {
     triggerPipeline();
   }
 
-  // Re-prediction run at 10:00 UTC (catches afternoon/evening European matches)
-  if (hour === 10 && minute === 0 && !isRePredictionActive) {
+  // Daily fixture sync
+  if (
+    config.FIXTURE_SYNC_ENABLED &&
+    hour === config.CRON_FIXTURE_SYNC_HOUR_UTC &&
+    minute === 0 &&
+    !isFixtureSyncActive
+  ) {
+    triggerFixtureSync();
+  }
+
+  // Daily re-prediction run (catches afternoon/evening European matches)
+  if (hour === config.CRON_REPREDICTION_HOUR_UTC && minute === 0 && !isRePredictionActive) {
     triggerRePrediction();
   }
 
-  // Hourly result tracking (at minute 30)
-  if (minute === 30 && !isTrackerActive) {
+  // Hourly result tracking
+  if (minute === config.CRON_RESULT_TRACKER_MINUTE_UTC && !isTrackerActive) {
     triggerResultTracking();
   }
 
-  // Daily metrics snapshot at 23:00 UTC
-  if (hour === 23 && minute === 0 && !isMetricsActive) {
+  // Daily metrics snapshot
+  if (hour === config.CRON_METRICS_HOUR_UTC && minute === 0 && !isMetricsActive) {
     triggerDailyMetrics();
   }
 
-  // Closing odds capture every 2 hours (at minute 15)
-  if (minute === 15 && hour % 2 === 0 && !isClosingOddsActive) {
+  // Closing odds capture in fixed interval
+  if (
+    minute === config.CRON_CLOSING_ODDS_MINUTE_UTC &&
+    hour % config.CRON_CLOSING_ODDS_INTERVAL_HOURS === 0 &&
+    !isClosingOddsActive
+  ) {
     triggerClosingOddsCapture();
   }
 }
@@ -220,6 +242,86 @@ export async function triggerClosingOddsCapture(): Promise<{
 }
 
 /**
+ * Trigger fixture sync for upcoming matches.
+ */
+export async function triggerFixtureSync(): Promise<{
+  success: boolean;
+  result?: Awaited<ReturnType<typeof syncUpcomingFixtures>>;
+  error?: string;
+}> {
+  if (isFixtureSyncActive) {
+    return { success: false, error: 'Fixture sync is already running' };
+  }
+
+  isFixtureSyncActive = true;
+  console.log('[Cron] Fixture sync triggered');
+
+  try {
+    const result = await syncUpcomingFixtures({
+      horizonDays: config.FIXTURE_SYNC_HORIZON_DAYS,
+      leagueIds: getConfiguredLeagueIds(),
+      dryRun: false,
+    });
+    lastFixtureSyncRun = new Date();
+
+    if (result.successfulFetches === 0 && result.errors.length > 0) {
+      return {
+        success: false,
+        result,
+        error: 'Fixture sync failed for all configured leagues',
+      };
+    }
+
+    return { success: true, result };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Cron] Fixture sync failed: ${msg}`);
+    return { success: false, error: msg };
+  } finally {
+    isFixtureSyncActive = false;
+  }
+}
+
+/**
+ * Trigger historical fixture seed.
+ */
+export async function triggerHistoricalFixtureSeed(
+  options: HistoricalFixtureSeedOptions = {}
+): Promise<{
+  success: boolean;
+  result?: Awaited<ReturnType<typeof seedHistoricalFixtures>>;
+  error?: string;
+}> {
+  if (isHistoricalSeedActive) {
+    return { success: false, error: 'Historical fixture seed is already running' };
+  }
+
+  isHistoricalSeedActive = true;
+  console.log('[Cron] Historical fixture seed triggered');
+
+  try {
+    const result = await seedHistoricalFixtures(options);
+    lastHistoricalSeedRun = new Date();
+
+    if (result.successfulFetches === 0 && result.errors.length > 0) {
+      return {
+        success: false,
+        result,
+        error: 'Historical fixture seed failed for all configured requests',
+      };
+    }
+
+    return { success: true, result };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Cron] Historical fixture seed failed: ${msg}`);
+    return { success: false, error: msg };
+  } finally {
+    isHistoricalSeedActive = false;
+  }
+}
+
+/**
  * Start the cron scheduler.
  */
 export function startCronScheduler() {
@@ -228,7 +330,18 @@ export function startCronScheduler() {
     return;
   }
 
-  console.log('[Cron] Scheduler started — pipeline: 06:00 UTC, re-prediction: 10:00 UTC, result tracking: hourly, metrics: 23:00 UTC, closing odds: every 2h');
+  const fixtureSyncSchedule = config.FIXTURE_SYNC_ENABLED
+    ? `${String(config.CRON_FIXTURE_SYNC_HOUR_UTC).padStart(2, '0')}:00 UTC`
+    : 'disabled';
+  console.log(
+    '[Cron] Scheduler started — fixture sync: ' +
+    `${fixtureSyncSchedule}, ` +
+    `pipeline: ${String(config.CRON_PIPELINE_HOUR_UTC).padStart(2, '0')}:00 UTC, ` +
+    `re-prediction: ${String(config.CRON_REPREDICTION_HOUR_UTC).padStart(2, '0')}:00 UTC, ` +
+    `result tracking: hourly @ minute ${String(config.CRON_RESULT_TRACKER_MINUTE_UTC).padStart(2, '0')}, ` +
+    `metrics: ${String(config.CRON_METRICS_HOUR_UTC).padStart(2, '0')}:00 UTC, ` +
+    `closing odds: every ${config.CRON_CLOSING_ODDS_INTERVAL_HOURS}h @ minute ${String(config.CRON_CLOSING_ODDS_MINUTE_UTC).padStart(2, '0')}`
+  );
   schedulerTimer = setInterval(checkScheduledTasks, 60_000);
   checkScheduledTasks();
 }
@@ -255,11 +368,15 @@ export function getSchedulerStatus() {
     rePredictionRunning: isRePredictionActive,
     metricsRunning: isMetricsActive,
     closingOddsRunning: isClosingOddsActive,
+    fixtureSyncRunning: isFixtureSyncActive,
+    historicalSeedRunning: isHistoricalSeedActive,
     lastPipelineRun,
     lastTrackerRun,
     lastRePredictionRun,
     lastMetricsRun,
     lastClosingOddsRun,
+    lastFixtureSyncRun,
+    lastHistoricalSeedRun,
     consecutiveFailures,
   };
 }

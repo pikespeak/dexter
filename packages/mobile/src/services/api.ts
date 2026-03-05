@@ -14,6 +14,7 @@ import {
 } from './mock-data';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_VERSION_PREFIX = '/v1';
 const REQUEST_TIMEOUT = 15_000; // 15 seconds
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 1000;
@@ -34,6 +35,16 @@ interface ApiOptions {
   timeout?: number;
 }
 
+function withApiPrefix(endpoint: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  if (endpoint.startsWith(API_VERSION_PREFIX)) {
+    return endpoint;
+  }
+  return `${API_VERSION_PREFIX}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -52,7 +63,7 @@ async function refreshAuthToken(): Promise<boolean> {
       const refreshToken = await SecureStore.getItemAsync('refresh_token');
       if (!refreshToken) return false;
 
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const response = await fetch(`${API_BASE_URL}${withApiPrefix('/auth/refresh')}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,7 +133,7 @@ async function apiCall<T>(endpoint: string, options: ApiOptions = {}): Promise<T
       }
 
       const response = await fetchWithTimeout(
-        `${API_BASE_URL}${endpoint}`,
+        `${API_BASE_URL}${withApiPrefix(endpoint)}`,
         {
           method,
           headers,

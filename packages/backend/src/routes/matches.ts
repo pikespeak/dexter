@@ -1,18 +1,29 @@
 import { Hono } from 'hono';
-import { eq, gte, desc } from 'drizzle-orm';
+import { and, eq, gte } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
 
 export const matchRoutes = new Hono();
 
+export function parseLeagueIdParam(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 // GET /matches/upcoming - Free endpoint for upcoming matches
 matchRoutes.get('/upcoming', async (c) => {
   const limit = parseInt(c.req.query('limit') || '20');
-  const leagueId = c.req.query('league_id');
+  const leagueId = parseLeagueIdParam(c.req.query('league_id'));
 
-  let query = db
+  const conditions = [gte(schema.matches.kickoff, new Date())];
+  if (leagueId != null) {
+    conditions.push(eq(schema.matches.leagueId, leagueId));
+  }
+
+  const query = db
     .select()
     .from(schema.matches)
-    .where(gte(schema.matches.kickoff, new Date()))
+    .where(conditions.length === 1 ? conditions[0] : and(...conditions))
     .orderBy(schema.matches.kickoff)
     .limit(limit);
 

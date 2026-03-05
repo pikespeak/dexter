@@ -7,6 +7,7 @@
 
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
+import { config } from '../config.js';
 import {
   getOverallPerformance,
   getMarketBreakdown,
@@ -228,11 +229,12 @@ export async function saveDailyMetrics(): Promise<void> {
  */
 export async function captureClosingOdds(): Promise<number> {
   // Import dynamically to avoid circular dependency
-  const { callFootballApi } = await import('../../../../src/tools/sports/api.js');
+  const { callFootballApi } = await import('../lib/sports-api.js');
 
-  // Find value bets for matches about to start (within next 2 hours)
+  // Find value bets for matches about to start (configurable lookahead window)
   const now = new Date();
-  const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const lookaheadHours = config.CLOSING_ODDS_LOOKAHEAD_HOURS;
+  const windowEnd = new Date(now.getTime() + lookaheadHours * 60 * 60 * 1000);
 
   const pendingBets = await db
     .select({
@@ -245,7 +247,7 @@ export async function captureClosingOdds(): Promise<number> {
       and(
         eq(schema.matches.status, 'scheduled'),
         gte(schema.matches.kickoff, now),
-        lte(schema.matches.kickoff, twoHoursLater),
+        lte(schema.matches.kickoff, windowEnd),
       )
     );
 
