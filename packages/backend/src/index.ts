@@ -26,6 +26,7 @@ import { generateModelReport } from './services/calibration.js';
 import { parseLeagueIdsCsv } from './services/fixture-sync.js';
 import { syncHybridFixtures } from './services/hybrid-fixture-sync.js';
 import { getApiFootballBudgetStatus } from './lib/sports-api.js';
+import { exportMatchPredictionVersionsCsv } from './services/match-csv-export.js';
 
 const app = new Hono();
 const API_PREFIX = '/v1';
@@ -73,6 +74,7 @@ const openApiSpec = {
     '/admin/sync-fixtures': { post: { summary: 'Trigger upcoming fixture sync' } },
     '/admin/sync-hybrid-fixtures': { post: { summary: 'Trigger CSV + live fixture sync' } },
     '/admin/seed-historical-fixtures': { post: { summary: 'Trigger historical fixture seed' } },
+    '/admin/export-match-csv': { post: { summary: 'Export match prediction version CSV' } },
     '/admin/model-report': { get: { summary: 'Get model report' } },
     '/docs': { get: { summary: 'OpenAPI specification' } },
   },
@@ -382,6 +384,45 @@ app.get(`${API_PREFIX}/admin/model-report`, async (c) => {
   const to = c.req.query('to') ? new Date(c.req.query('to')!) : undefined;
   const report = await generateModelReport({ from, to });
   return c.json(report);
+});
+
+// Admin: Export match prediction version CSV
+app.post(`${API_PREFIX}/admin/export-match-csv`, async (c) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const providedKey = c.req.header('X-Admin-Key') || c.req.query('key');
+
+  if (adminKey && providedKey !== adminKey) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  if (!adminKey && process.env.NODE_ENV === 'production') {
+    return c.json({ error: 'ADMIN_API_KEY not configured' }, 500);
+  }
+
+  const parseOptionalBool = (raw: string | undefined): boolean | undefined => {
+    if (!raw) return undefined;
+    const normalized = raw.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return undefined;
+  };
+
+  const result = await exportMatchPredictionVersionsCsv({
+    includePending: parseOptionalBool(c.req.query('include_pending')),
+    includeFinished: parseOptionalBool(c.req.query('include_finished')),
+    outputDir: c.req.query('output_dir') || undefined,
+    outputFileName: c.req.query('output_file') || undefined,
+    snapshotEnabled: parseOptionalBool(c.req.query('snapshot')),
+    timezone: c.req.query('timezone') || undefined,
+  });
+
+  return c.json({
+    success: true,
+    rows: result.rows,
+    file: result.path,
+    durationMs: result.durationMs,
+    warnings: result.warnings,
+  });
 });
 
 // 404 handler

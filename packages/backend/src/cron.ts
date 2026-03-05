@@ -15,6 +15,7 @@ import {
   getConfiguredLeagueIds,
   type HistoricalFixtureSeedOptions,
 } from './services/fixture-sync.js';
+import { exportMatchPredictionVersionsCsv } from './services/match-csv-export.js';
 import { config } from './config.js';
 
 let isPipelineActive = false;
@@ -176,6 +177,22 @@ export async function triggerResultTracking(): Promise<{
   try {
     const result = await trackResults();
     lastTrackerRun = new Date();
+
+    if (config.MATCH_CSV_EXPORT_ENABLED) {
+      try {
+        const exportResult = await exportMatchPredictionVersionsCsv();
+        console.log(
+          `[Cron] Match CSV export complete: rows=${exportResult.rows} file=${exportResult.path} durationMs=${exportResult.durationMs}`
+        );
+        if (exportResult.warnings.length > 0) {
+          console.warn(`[Cron] Match CSV export warnings: ${exportResult.warnings.join('; ')}`);
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[Cron] Match CSV export failed (fail-open): ${msg}`);
+      }
+    }
+
     return { success: true, result };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

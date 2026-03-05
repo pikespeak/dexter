@@ -107,6 +107,25 @@ npx expo start
 npx tsc --noEmit
 ```
 
+CSV import (football-data.co.uk):
+
+```bash
+curl -X POST "http://localhost:3000/v1/admin/sync-hybrid-fixtures?include_csv=true&include_live=false&dry_run=false" \
+  -H "X-Admin-Key: $(grep '^ADMIN_API_KEY=' .env | cut -d= -f2-)"
+```
+
+The command uses `CSV_FIXTURE_FILES` from `.env`.
+
+Delta import shortcut (latest season, rolling window):
+
+```bash
+cd packages/backend
+bun run csv:import:delta
+# optional:
+# bun run csv:import:delta:dry
+# bun run csv:import:delta -- --season=2526 --window-days=30
+```
+
 ## Documentation
 
 - Blueprint: `docs/PiksPeak-Blueprint-Zusammenfassung.md`

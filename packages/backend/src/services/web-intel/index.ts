@@ -2,7 +2,10 @@ import { createHash } from 'crypto';
 import { z } from 'zod';
 import { cacheGet, cacheSet } from '../cache.js';
 import { config } from '../../config.js';
-import { buildContextPlaceholders } from '../context-enrichment/index.js';
+import {
+  buildLocationAndWeatherContext,
+  type ContextEnrichmentRuntimeConfig,
+} from '../context-enrichment/index.js';
 import {
   ContextEnrichmentSchema,
   WebIntelSchema,
@@ -35,11 +38,13 @@ export interface WebIntelInput {
   awayTeam: string;
   leagueName: string;
   kickoff?: Date;
+  venue?: string;
+  country?: string;
   homeRecentFixtures?: unknown;
   awayRecentFixtures?: unknown;
 }
 
-interface WebIntelRuntimeConfig {
+interface WebIntelRuntimeConfig extends ContextEnrichmentRuntimeConfig {
   enabled: boolean;
   apiKey?: string;
   recencyHours: number;
@@ -449,6 +454,10 @@ function resolveRuntimeConfig(overrides?: Partial<WebIntelRuntimeConfig>): WebIn
     maxQueries: config.WEB_INTEL_MAX_QUERIES_PER_MATCH,
     maxResults: config.WEB_INTEL_MAX_RESULTS_PER_QUERY,
     timeoutMs: config.WEB_INTEL_TIMEOUT_MS,
+    weatherEnabled: config.WEATHER_INTEL_ENABLED,
+    locationEnabled: config.LOCATION_INTEL_ENABLED,
+    weatherTimeoutMs: config.WEATHER_INTEL_TIMEOUT_MS,
+    locationTimeoutMs: config.LOCATION_INTEL_TIMEOUT_MS,
     ...overrides,
   };
 }
@@ -468,7 +477,15 @@ export async function getContextEnrichment(
   const timeoutMs = runtime.timeoutMs;
 
   const context: ContextEnrichment = {
-    ...buildContextPlaceholders(),
+    ...(await buildLocationAndWeatherContext(
+      {
+        kickoff: input.kickoff,
+        leagueName: input.leagueName,
+        venue: input.venue,
+        country: input.country,
+      },
+      runtime,
+    )),
   };
 
   if (!shouldUseWebIntel(runtime)) {

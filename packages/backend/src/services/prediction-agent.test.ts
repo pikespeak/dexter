@@ -146,6 +146,50 @@ describe('PredictionResultSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  test('analysis supports council trace fields', () => {
+    const result = PredictionResultSchema.safeParse({
+      ...validPrediction,
+      analysis: {
+        summary: 'Council synthesis',
+        keyFactors: ['member alignment'],
+        homeStrengths: ['pressing'],
+        awayStrengths: ['transitions'],
+        councilSummary: 'Council finalized by anthropic/claude-opus-4.6 with 4/4 valid members.',
+        councilDisagreement: 12.4,
+        council: {
+          source: 'decider',
+          successfulMembers: 4,
+          memberModels: [
+            'anthropic/claude-opus-4.6',
+            'xai/grok-4',
+            'google/gemini-3.1-pro-preview',
+            'openai/gpt-5.2',
+          ],
+          deciderModel: 'anthropic/claude-opus-4.6',
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('analysis supports prompt context with SHA-256 hash', () => {
+    const result = PredictionResultSchema.safeParse({
+      ...validPrediction,
+      analysis: {
+        summary: 'Prompt persisted',
+        keyFactors: ['context'],
+        homeStrengths: ['shape'],
+        awayStrengths: ['press'],
+        promptContext: {
+          systemPrompt: 'System',
+          userPrompt: 'User',
+          promptHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
   test('confidence capped at 100', () => {
     const result = PredictionResultSchema.safeParse({
       ...validPrediction,

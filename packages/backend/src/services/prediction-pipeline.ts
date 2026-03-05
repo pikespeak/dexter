@@ -12,6 +12,7 @@
  */
 
 import { eq, and, gte, lte, desc, inArray } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
 import { db, schema } from '../db/index.js';
 import { callFootballApi, callOddsApi } from '../lib/sports-api.js';
 import { generateMatchPrediction, type PredictionResult } from './prediction-agent.js';
@@ -21,6 +22,12 @@ import { config } from '../config.js';
 import { getConfiguredLeagueIds, getConfiguredLeagues, parseLeagueIdsCsv } from './fixture-sync.js';
 
 type FullPredictionResult = PredictionResult & { poissonBaseline?: PoissonPrediction };
+
+interface PromptContextPayload {
+  systemPrompt: string;
+  userPrompt: string;
+  promptHash: string;
+}
 
 // ---------------------------------------------------------------------------
 // Main Pipeline
@@ -358,6 +365,7 @@ async function storePrediction(match: MatchData, prediction: FullPredictionResul
 
   const predictionValues = {
     predictionData: prediction.analysis as unknown as Record<string, unknown>,
+    modelVersion: 'council-v1',
     confidence: String(prediction.confidence),
     homeWinProb: String(prediction.homeWinProb),
     drawProb: String(prediction.drawProb),
@@ -377,20 +385,154 @@ async function storePrediction(match: MatchData, prediction: FullPredictionResul
     } : {}),
   };
 
+  let predictionId: string;
+  let tier: 'free' | 'pro' | 'premium' = 'pro';
+
   if (existingPrediction.length > 0) {
     await db
       .update(schema.predictions)
       .set(predictionValues)
       .where(eq(schema.predictions.id, existingPrediction[0].id));
+    predictionId = existingPrediction[0].id;
+    tier = existingPrediction[0].tier;
   } else {
-    await db.insert(schema.predictions).values({
+    const [inserted] = await db.insert(schema.predictions).values({
       matchId,
       ...predictionValues,
       tier: 'pro', // Default; will be reassigned in assignTiers()
+    }).returning({
+      id: schema.predictions.id,
+      tier: schema.predictions.tier,
     });
+    predictionId = inserted.id;
+    tier = inserted.tier;
   }
 
+  const analysis = prediction.analysis as unknown as Record<string, unknown>;
+  const promptContext = extractPromptContext(analysis);
+  const councilTrace = extractCouncilTrace(analysis);
+  const predictionSnapshot = {
+    homeWinProb: prediction.homeWinProb,
+    drawProb: prediction.drawProb,
+    awayWinProb: prediction.awayWinProb,
+    overUnder25: prediction.overUnder25,
+    overUnder25Prob: prediction.overUnder25Prob,
+    btts: prediction.btts,
+    bttsProb: prediction.bttsProb,
+    predictedScore: prediction.predictedScore,
+    confidence: prediction.confidence,
+    analysis,
+    poissonBaseline: prediction.poissonBaseline ?? null,
+  };
+
+  await insertPredictionVersionWithRetry({
+    matchId,
+    predictionId,
+    modelVersion: 'council-v1',
+    tier,
+    promptContext,
+    councilTrace,
+    prediction,
+    predictionSnapshot,
+  });
+
   console.log(`[Pipeline] Stored prediction for ${match.homeTeam} vs ${match.awayTeam}`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function extractPromptContext(analysis: Record<string, unknown>): PromptContextPayload {
+  const fallback: PromptContextPayload = {
+    systemPrompt: '',
+    userPrompt: '',
+    promptHash: '0000000000000000000000000000000000000000000000000000000000000000',
+  };
+
+  if (!isRecord(analysis.promptContext)) return fallback;
+  const raw = analysis.promptContext;
+
+  const systemPrompt = typeof raw.systemPrompt === 'string' ? raw.systemPrompt : '';
+  const userPrompt = typeof raw.userPrompt === 'string' ? raw.userPrompt : '';
+  const providedHash = typeof raw.promptHash === 'string' ? raw.promptHash.toLowerCase() : '';
+  const computedHash = createHash('sha256')
+    .update(systemPrompt)
+    .update('\n\n')
+    .update(userPrompt)
+    .digest('hex');
+
+  return {
+    systemPrompt,
+    userPrompt,
+    promptHash: /^[a-f0-9]{64}$/i.test(providedHash) ? providedHash : computedHash,
+  };
+}
+
+function extractCouncilTrace(analysis: Record<string, unknown>): Record<string, unknown> | null {
+  if (!isRecord(analysis.council)) return null;
+  return analysis.council;
+}
+
+interface InsertPredictionVersionInput {
+  matchId: string;
+  predictionId: string;
+  modelVersion: string;
+  tier: 'free' | 'pro' | 'premium';
+  promptContext: PromptContextPayload;
+  councilTrace: Record<string, unknown> | null;
+  prediction: FullPredictionResult;
+  predictionSnapshot: Record<string, unknown>;
+}
+
+async function getNextPredictionVersionNo(matchId: string): Promise<number> {
+  const latest = await db
+    .select({
+      versionNo: schema.predictionVersions.versionNo,
+    })
+    .from(schema.predictionVersions)
+    .where(eq(schema.predictionVersions.matchId, matchId))
+    .orderBy(desc(schema.predictionVersions.versionNo))
+    .limit(1);
+
+  if (latest.length === 0) return 1;
+  return latest[0].versionNo + 1;
+}
+
+async function insertPredictionVersionWithRetry(input: InsertPredictionVersionInput): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const versionNo = await getNextPredictionVersionNo(input.matchId);
+
+    try {
+      await db.insert(schema.predictionVersions).values({
+        matchId: input.matchId,
+        predictionId: input.predictionId,
+        versionNo,
+        modelVersion: input.modelVersion,
+        tier: input.tier,
+        systemPrompt: input.promptContext.systemPrompt,
+        userPrompt: input.promptContext.userPrompt,
+        promptHash: input.promptContext.promptHash,
+        predictionSnapshot: input.predictionSnapshot,
+        councilTrace: input.councilTrace,
+        homeWinProb: String(input.prediction.homeWinProb),
+        drawProb: String(input.prediction.drawProb),
+        awayWinProb: String(input.prediction.awayWinProb),
+        overUnder25: input.prediction.overUnder25,
+        overUnder25Prob: String(input.prediction.overUnder25Prob),
+        btts: input.prediction.btts,
+        bttsProb: String(input.prediction.bttsProb),
+        predictedScore: input.prediction.predictedScore,
+        confidence: String(input.prediction.confidence),
+      });
+      return;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isUniqueConflict = msg.includes('prediction_versions_match_version_unique');
+      if (attempt === 0 && isUniqueConflict) continue;
+      throw error;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

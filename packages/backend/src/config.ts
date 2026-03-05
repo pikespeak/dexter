@@ -29,12 +29,19 @@ const configSchema = z.object({
   JWT_REFRESH_SECRET: z.string().optional(),
 
   // External APIs
+  SPORTS_DATA_PROVIDER: z.enum(['api-football', 'sportmonks', 'football-data']).default('sportmonks'),
   API_FOOTBALL_KEY: z.string().optional(),
+  API_FOOTBALL_BASE_URL: z.string().default('https://v3.football.api-sports.io'),
   API_FOOTBALL_MAX_REQUESTS: z.coerce.number().int().min(0).default(0),
   API_FOOTBALL_SEASON_MODE: z.enum(['auto', 'range', 'list', 'all']).default('auto'),
   API_FOOTBALL_SEASON_LIST: z.string().default(''),
   API_FOOTBALL_SEASON_FROM: z.coerce.number().int().min(1900).max(2100).default(2022),
   API_FOOTBALL_SEASON_TO: z.coerce.number().int().min(1900).max(2100).default(2024),
+  SPORTMONKS_API_KEY: z.string().optional(),
+  SPORTMONKS_BASE_URL: z.string().default('https://api.sportmonks.com/v3/football'),
+  FOOTBALL_DATA_API_KEY: z.string().optional(),
+  FOOTBALL_DATA_BASE_URL: z.string().default('https://api.football-data.org/v4'),
+  FOOTBALL_DATA_COMPETITION_MAP: z.string().default('39:PL,140:PD,78:BL1,135:SA,61:FL1'),
   ODDS_API_KEY: z.string().optional(),
   TAVILY_API_KEY: z.string().optional(),
 
@@ -43,6 +50,27 @@ const configSchema = z.object({
   AI_GATEWAY_BASE_URL: z.string().optional(),
   PREDICTION_MODEL: z.string().default('anthropic/claude-sonnet-4-5-20250514'),
   ENSEMBLE_MODELS: z.string().optional(),
+  COUNCIL_MEMBER_MODELS: z.string().default(
+    'anthropic/claude-opus-4.6,xai/grok-4,google/gemini-3.1-pro-preview,openai/gpt-5.2'
+  ),
+  COUNCIL_DECIDER_MODEL: z.string().default('anthropic/claude-opus-4.6'),
+  COUNCIL_QUORUM: z.coerce.number().int().min(1).default(3),
+  COUNCIL_MEMBER_TIMEOUT_MS: z.coerce.number().int().positive().default(90000),
+  COUNCIL_DECIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(120000),
+  COUNCIL_MAX_RETRIES: z.coerce.number().int().positive().default(2),
+  COUNCIL_REASONING_EFFORT: z.enum(['low', 'medium', 'high']).default('high'),
+  COUNCIL_WEB_SEARCH_ENABLED: envBool.default(true),
+  COUNCIL_TRACE_FULL_JSON: envBool.default(true),
+  COUNCIL_MODEL_PRICING_USD_PER_1M: z.string().default(
+    '{"anthropic/claude-opus-4.6":{"input":5,"output":25},"xai/grok-4":{"input":3,"output":15},"google/gemini-3.1-pro-preview":{"input":2,"output":12},"openai/gpt-5.2":{"input":1.75,"output":14}}'
+  ),
+  MATCH_CSV_EXPORT_ENABLED: envBool.default(true),
+  MATCH_CSV_EXPORT_DIR: z.string().default('output/match-csv'),
+  MATCH_CSV_EXPORT_FILENAME: z.string().default('match-prediction-versions-latest.csv'),
+  MATCH_CSV_EXPORT_INCLUDE_PENDING: envBool.default(true),
+  MATCH_CSV_EXPORT_INCLUDE_FINISHED: envBool.default(true),
+  MATCH_CSV_EXPORT_SNAPSHOT_ENABLED: envBool.default(false),
+  MATCH_CSV_EXPORT_TIMEZONE: z.string().default('UTC'),
 
   // Context enrichment
   WEB_INTEL_ENABLED: envBool.default(false),
@@ -51,7 +79,9 @@ const configSchema = z.object({
   WEB_INTEL_MAX_RESULTS_PER_QUERY: z.coerce.number().int().positive().default(5),
   WEB_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(6000),
   WEATHER_INTEL_ENABLED: envBool.default(false),
+  WEATHER_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   LOCATION_INTEL_ENABLED: envBool.default(false),
+  LOCATION_INTEL_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 
   // Scheduling (UTC)
   CRON_FIXTURE_SYNC_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(3),
@@ -139,8 +169,19 @@ export function getConfig(): Config {
 
     // Production checks
     if (_config.NODE_ENV === 'production') {
-      const required = ['JWT_SECRET', 'DATABASE_URL', 'API_FOOTBALL_KEY'] as const;
-      const missing = required.filter((key) => !_config![key]);
+      const required = ['JWT_SECRET', 'DATABASE_URL'] as const;
+      const missing: string[] = required.filter((key) => !_config![key]);
+
+      if (_config.SPORTS_DATA_PROVIDER === 'api-football' && !_config.API_FOOTBALL_KEY) {
+        missing.push('API_FOOTBALL_KEY');
+      }
+      if (_config.SPORTS_DATA_PROVIDER === 'sportmonks' && !_config.SPORTMONKS_API_KEY) {
+        missing.push('SPORTMONKS_API_KEY');
+      }
+      if (_config.SPORTS_DATA_PROVIDER === 'football-data' && !_config.FOOTBALL_DATA_API_KEY) {
+        missing.push('FOOTBALL_DATA_API_KEY');
+      }
+
       if (missing.length > 0) {
         throw new Error(`Missing required production env vars: ${missing.join(', ')}`);
       }

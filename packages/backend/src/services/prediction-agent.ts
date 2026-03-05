@@ -4,12 +4,13 @@
  * Calls sports data APIs directly (no full agent loop),
  * then uses LLM with structured output for prediction synthesis.
  *
- * All LLM calls go through Vercel AI Gateway (OpenAI-compatible endpoint).
- * Model is configurable via PREDICTION_MODEL env var using "provider/model" format.
+ * All LLM calls go through the Vercel AI Gateway council flow.
+ * Four member models vote, then a decider model synthesizes a final JSON result.
  */
 
 import { z } from 'zod';
-import { callFootballApi, callOddsApi } from '../lib/sports-api.js';
+import { createHash } from 'node:crypto';
+import { callFootballApi } from '../lib/sports-api.js';
 import { getPrimaryApiFootballSeason } from '../utils/api-football-season.js';
 import {
   calculatePoissonPrediction,
@@ -25,19 +26,7 @@ import {
   WebSourceMetadataSchema,
   type ContextEnrichment,
 } from './context-enrichment/types.js';
-
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
-
-const PREDICTION_MODEL = process.env.PREDICTION_MODEL || 'anthropic/claude-sonnet-4-5-20250514';
-const MAX_RETRIES = 2;
-
-// Ensemble: comma-separated list of models, e.g. "anthropic/claude-sonnet-4-5-20250514,openai/gpt-4o,google/gemini-2.0-flash"
-// If not set, only PREDICTION_MODEL is used (single model, no ensemble).
-const ENSEMBLE_MODELS = process.env.ENSEMBLE_MODELS
-  ? process.env.ENSEMBLE_MODELS.split(',').map(m => m.trim()).filter(Boolean)
-  : [];
+import { runPredictionCouncil, type CouncilTrace } from './llm-council.js';
 
 // ---------------------------------------------------------------------------
 // Zod Schema for structured LLM output
@@ -67,68 +56,24 @@ export const PredictionResultSchema = z.object({
     webFeatureSnapshot: WebFeatureSnapshotSchema.optional(),
     weatherContext: WeatherContextSchema.optional(),
     locationContext: LocationContextSchema.optional(),
+    council: z.object({}).passthrough().optional(),
+    councilSummary: z.string().optional(),
+    councilDisagreement: z.number().min(0).max(100).optional(),
+    promptContext: z.object({
+      systemPrompt: z.string(),
+      userPrompt: z.string(),
+      promptHash: z.string().regex(/^[a-f0-9]{64}$/i),
+    }).optional(),
   }),
 });
 
 export type PredictionResult = z.infer<typeof PredictionResultSchema>;
 
 // ---------------------------------------------------------------------------
-// LLM Call (direct API, no LangChain dependency)
-// ---------------------------------------------------------------------------
-
-interface LlmMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-async function callGateway(model: string, messages: LlmMessage[]): Promise<string> {
-  const apiKey = process.env.AI_GATEWAY_API_KEY;
-  if (!apiKey) throw new Error('AI_GATEWAY_API_KEY not set');
-
-  const baseUrl = process.env.AI_GATEWAY_BASE_URL || 'https://ai-gateway.vercel.sh/v1';
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`AI Gateway ${response.status} [${model}]: ${err}`);
-  }
-
-  const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
-  return data.choices[0].message.content;
-}
-
-async function callLlm(messages: LlmMessage[]): Promise<string> {
-  const model = PREDICTION_MODEL;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await callGateway(model, messages);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error(`[PredictionAgent] LLM call attempt ${attempt + 1}/${MAX_RETRIES} failed: ${msg}`);
-      if (attempt === MAX_RETRIES - 1) throw error;
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-    }
-  }
-  throw new Error('Unreachable');
-}
-
-// ---------------------------------------------------------------------------
 // Match Data Gathering
 // ---------------------------------------------------------------------------
 
-interface MatchInput {
+export interface MatchInput {
   fixtureId: number;
   homeTeam: string;
   homeTeamId: number;
@@ -302,7 +247,7 @@ function extractFixtureIds(fixtures: unknown): number[] {
 // Prediction Generation
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are an expert football/soccer analyst producing calibrated probability estimates.
+export const SYSTEM_PROMPT = `You are an expert football/soccer analyst producing calibrated probability estimates.
 
 ## BASE RATES (Top 5 European Leagues Average)
 Use these as your starting point and adjust based on match-specific data:
@@ -356,6 +301,43 @@ Respond ONLY with valid JSON matching this schema:
 }`;
 
 export async function generateMatchPrediction(match: MatchInput): Promise<PredictionResult & { poissonBaseline?: PoissonPrediction }> {
+  const prepared = await preparePredictionPromptContext(match);
+  console.log('[PredictionAgent] Running LLM council (4 members + decider)...');
+  const councilResult = await runPredictionCouncil<PredictionResult>({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt: prepared.prompt,
+    matchMeta: {
+      fixtureId: match.fixtureId,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      leagueName: match.leagueName,
+      kickoff: match.kickoff,
+    },
+    validateResult: (value) => PredictionResultSchema.parse(value),
+  });
+
+  // Apply web-intel adjustments with strict caps (if available), then normalize/fill defaults.
+  const raw = structuredClone(councilResult.finalResult) as Record<string, unknown>;
+  if (prepared.enrichment.webIntel) {
+    applyWebIntelAdjustments(raw, prepared.enrichment.webIntel);
+  }
+  normalizeProbabilities(raw);
+  fillDefaultProbs(raw, prepared.poissonBaseline);
+  attachContextToAnalysis(raw, prepared.enrichment);
+  attachCouncilToAnalysis(raw, councilResult.councilTrace);
+  attachPromptContextToAnalysis(raw, SYSTEM_PROMPT, prepared.prompt);
+
+  const result = PredictionResultSchema.parse(raw);
+  return { ...result, poissonBaseline: prepared.poissonBaseline };
+}
+
+interface PreparedPredictionPromptContext {
+  prompt: string;
+  poissonBaseline?: PoissonPrediction;
+  enrichment: ContextEnrichment;
+}
+
+async function preparePredictionPromptContext(match: MatchInput): Promise<PreparedPredictionPromptContext> {
   console.log(`[PredictionAgent] Gathering data for ${match.homeTeam} vs ${match.awayTeam}...`);
   const data = await gatherMatchData(match);
 
@@ -364,6 +346,7 @@ export async function generateMatchPrediction(match: MatchInput): Promise<Predic
     awayTeam: match.awayTeam,
     leagueName: match.leagueName,
     kickoff: match.kickoff,
+    venue: match.venue,
     homeRecentFixtures: data.homeRecentFixtures,
     awayRecentFixtures: data.awayRecentFixtures,
   });
@@ -377,136 +360,34 @@ export async function generateMatchPrediction(match: MatchInput): Promise<Predic
     poissonBaseline = calculatePoissonPrediction(homeGoalStats, awayGoalStats);
     console.log(`[PredictionAgent] Poisson baseline: H${poissonBaseline.homeWinProb}% D${poissonBaseline.drawProb}% A${poissonBaseline.awayWinProb}% | O2.5:${poissonBaseline.over25Prob}% BTTS:${poissonBaseline.bttsProb}%`);
   } else {
-    console.log(`[PredictionAgent] Insufficient stats for Poisson model — LLM will use base rates only`);
+    console.log('[PredictionAgent] Insufficient stats for Poisson model — prompt will rely on base rates');
   }
 
   const prompt = buildPredictionPrompt(match, data, poissonBaseline, enrichment);
-  const messages: LlmMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: prompt },
-  ];
-
-  // Ensemble mode: call multiple models in parallel
-  let parsed: unknown;
-  if (ENSEMBLE_MODELS.length >= 2) {
-    parsed = await runEnsemblePrediction(messages, ENSEMBLE_MODELS);
-  } else {
-    console.log(`[PredictionAgent] Calling LLM (${PREDICTION_MODEL})...`);
-    const rawResponse = await callLlm(messages);
-    parsed = parseLlmResponse(rawResponse);
-  }
-
-  // Apply web-intel adjustments with strict caps (if available), then normalize/fill defaults.
-  const raw = parsed as Record<string, unknown>;
-  if (enrichment.webIntel) {
-    applyWebIntelAdjustments(raw, enrichment.webIntel);
-  }
-  normalizeProbabilities(raw);
-  fillDefaultProbs(raw, poissonBaseline);
-  attachContextToAnalysis(raw, enrichment);
-
-  const result = PredictionResultSchema.parse(raw);
-  return { ...result, poissonBaseline };
+  return { prompt, poissonBaseline, enrichment };
 }
 
-/**
- * Run multiple LLMs in parallel and average their probability estimates.
- * Analysis text is taken from the primary (first) model.
- * If models strongly diverge (>15% spread on any outcome), confidence is reduced.
- */
-async function runEnsemblePrediction(messages: LlmMessage[], models: string[]): Promise<unknown> {
-  console.log(`[PredictionAgent] Ensemble mode: calling ${models.length} models: ${models.join(', ')}`);
-
-  const results = await Promise.allSettled(
-    models.map(async (model) => {
-      const rawResponse = await callLlmWithModel(model, messages);
-      return parseLlmResponse(rawResponse);
-    })
-  );
-
-  const successful: Record<string, unknown>[] = [];
-  for (let i = 0; i < results.length; i++) {
-    if (results[i].status === 'fulfilled') {
-      successful.push((results[i] as PromiseFulfilledResult<unknown>).value as Record<string, unknown>);
-    } else {
-      console.warn(`[PredictionAgent] Ensemble: ${models[i]} failed: ${(results[i] as PromiseRejectedResult).reason}`);
-    }
-  }
-
-  if (successful.length === 0) {
-    throw new Error('All ensemble models failed');
-  }
-  if (successful.length === 1) {
-    return successful[0];
-  }
-
-  // Average numeric probabilities across successful models
-  const numericKeys = ['homeWinProb', 'drawProb', 'awayWinProb', 'overUnder25Prob', 'bttsProb', 'confidence'] as const;
-  const averaged = { ...successful[0] }; // Take analysis from first model
-
-  for (const key of numericKeys) {
-    const values = successful.map(r => Number(r[key] || 0)).filter(v => v > 0);
-    if (values.length > 0) {
-      averaged[key] = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
-    }
-  }
-
-  // Check divergence — if models disagree strongly, lower confidence
-  const homeProbs = successful.map(r => Number(r.homeWinProb || 0));
-  const drawProbs = successful.map(r => Number(r.drawProb || 0));
-  const awayProbs = successful.map(r => Number(r.awayWinProb || 0));
-
-  const maxSpread = Math.max(
-    Math.max(...homeProbs) - Math.min(...homeProbs),
-    Math.max(...drawProbs) - Math.min(...drawProbs),
-    Math.max(...awayProbs) - Math.min(...awayProbs),
-  );
-
-  if (maxSpread > 15) {
-    console.log(`[PredictionAgent] Ensemble divergence: ${maxSpread.toFixed(1)}% spread — reducing confidence`);
-    averaged.confidence = Math.max(20, Number(averaged.confidence || 50) - 15);
-  }
-
-  // Majority vote for categorical fields
-  const overVotes = successful.filter(r => r.overUnder25 === 'over').length;
-  averaged.overUnder25 = overVotes > successful.length / 2 ? 'over' : 'under';
-
-  const bttsVotes = successful.filter(r => r.btts === true).length;
-  averaged.btts = bttsVotes > successful.length / 2;
-
-  // Use the predicted score from the model closest to the average
-  const avgHome = Number(averaged.homeWinProb);
-  let closestIdx = 0;
-  let closestDist = Infinity;
-  for (let i = 0; i < successful.length; i++) {
-    const dist = Math.abs(Number(successful[i].homeWinProb || 0) - avgHome);
-    if (dist < closestDist) { closestDist = dist; closestIdx = i; }
-  }
-  averaged.predictedScore = successful[closestIdx].predictedScore;
-
-  console.log(`[PredictionAgent] Ensemble result (${successful.length} models): H${averaged.homeWinProb}% D${averaged.drawProb}% A${averaged.awayWinProb}%`);
-  return averaged;
-}
-
-async function callLlmWithModel(model: string, messages: LlmMessage[]): Promise<string> {
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await callGateway(model, messages);
-    } catch (error) {
-      if (attempt === MAX_RETRIES - 1) throw error;
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-    }
-  }
-  throw new Error('Unreachable');
-}
-
-function parseLlmResponse(rawResponse: string): unknown {
-  const jsonStr = rawResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    throw new Error(`Failed to parse LLM response as JSON: ${jsonStr.slice(0, 200)}`);
-  }
+export async function previewMatchPredictionPrompt(match: MatchInput): Promise<{
+  systemPrompt: string;
+  userPrompt: string;
+  poissonBaseline?: PoissonPrediction;
+  context: {
+    webIntelIncluded: boolean;
+    weatherStatus: string;
+    locationStatus: string;
+  };
+}> {
+  const prepared = await preparePredictionPromptContext(match);
+  return {
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt: prepared.prompt,
+    poissonBaseline: prepared.poissonBaseline,
+    context: {
+      webIntelIncluded: Boolean(prepared.enrichment.webIntel),
+      weatherStatus: prepared.enrichment.weatherContext?.status ?? 'disabled',
+      locationStatus: prepared.enrichment.locationContext?.status ?? 'disabled',
+    },
+  };
 }
 
 export function normalizeProbabilities(raw: Record<string, unknown>): void {
@@ -555,6 +436,38 @@ function attachContextToAnalysis(raw: Record<string, unknown>, enrichment: Conte
   if (enrichment.locationContext) {
     raw.analysis.locationContext = enrichment.locationContext;
   }
+}
+
+function attachCouncilToAnalysis(raw: Record<string, unknown>, councilTrace: CouncilTrace): void {
+  if (!isRecord(raw.analysis)) return;
+
+  const disagreement =
+    councilTrace.aggregation?.disagreementSpread1X2 != null
+      ? Math.round(councilTrace.aggregation.disagreementSpread1X2 * 100) / 100
+      : undefined;
+
+  raw.analysis.council = councilTrace as unknown as Record<string, unknown>;
+  raw.analysis.councilSummary =
+    councilTrace.source === 'decider'
+      ? `Council finalized by ${councilTrace.deciderModel} with ${councilTrace.successfulMembers}/${councilTrace.memberModels.length} valid member outputs.`
+      : `Council fallback used after decider failure; synthesized from ${councilTrace.successfulMembers}/${councilTrace.memberModels.length} valid member outputs.`;
+  raw.analysis.councilDisagreement = disagreement;
+}
+
+function attachPromptContextToAnalysis(raw: Record<string, unknown>, systemPrompt: string, userPrompt: string): void {
+  if (!isRecord(raw.analysis)) return;
+
+  const promptHash = createHash('sha256')
+    .update(systemPrompt)
+    .update('\n\n')
+    .update(userPrompt)
+    .digest('hex');
+
+  raw.analysis.promptContext = {
+    systemPrompt,
+    userPrompt,
+    promptHash,
+  };
 }
 
 function extractWebIntelBlock(webIntel: ContextEnrichment['webIntel']): string {

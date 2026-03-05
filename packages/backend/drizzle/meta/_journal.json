@@ -15,6 +15,13 @@
       "when": 1741176000000,
       "tag": "0001_add_prediction_quality_fields",
       "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772744722298,
+      "tag": "0002_tricky_bishop",
+      "breakpoints": true
     }
   ]
 }

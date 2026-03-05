@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, integer, boolean, jsonb, pgEnum, decimal, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, integer, boolean, jsonb, pgEnum, decimal, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 // Enums
 export const subscriptionPlanEnum = pgEnum('subscription_plan', ['free', 'pro', 'premium']);
@@ -83,6 +83,36 @@ export const predictions = pgTable('predictions', {
   index('predictions_match_id_idx').on(table.matchId),
   index('predictions_tier_idx').on(table.tier),
   index('predictions_created_at_idx').on(table.createdAt),
+]);
+
+// Prediction versions table (append-only history per match)
+export const predictionVersions = pgTable('prediction_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  matchId: uuid('match_id').notNull().references(() => matches.id),
+  predictionId: uuid('prediction_id').notNull().references(() => predictions.id),
+  versionNo: integer('version_no').notNull(),
+  modelVersion: varchar('model_version', { length: 50 }).notNull().default('council-v1'),
+  tier: subscriptionPlanEnum('tier').notNull().default('pro'),
+  systemPrompt: text('system_prompt').notNull(),
+  userPrompt: text('user_prompt').notNull(),
+  promptHash: varchar('prompt_hash', { length: 64 }).notNull(),
+  predictionSnapshot: jsonb('prediction_snapshot').notNull(),
+  councilTrace: jsonb('council_trace'),
+  homeWinProb: decimal('home_win_prob', { precision: 5, scale: 2 }),
+  drawProb: decimal('draw_prob', { precision: 5, scale: 2 }),
+  awayWinProb: decimal('away_win_prob', { precision: 5, scale: 2 }),
+  overUnder25: varchar('over_under_25', { length: 10 }),
+  overUnder25Prob: decimal('over_under_25_prob', { precision: 5, scale: 2 }),
+  btts: boolean('btts'),
+  bttsProb: decimal('btts_prob', { precision: 5, scale: 2 }),
+  predictedScore: varchar('predicted_score', { length: 10 }),
+  confidence: decimal('confidence', { precision: 5, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('prediction_versions_match_version_unique').on(table.matchId, table.versionNo),
+  index('prediction_versions_match_idx').on(table.matchId),
+  index('prediction_versions_prediction_idx').on(table.predictionId),
+  index('prediction_versions_created_at_idx').on(table.createdAt),
 ]);
 
 // Performance tracking table
