@@ -13,8 +13,12 @@
 
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { db, schema } from '../db/index.js';
-import { callFootballApi } from '../../../../src/tools/sports/api.js';
+import { callFootballApi, callOddsApi } from '../../../../src/tools/sports/api.js';
 import { generateMatchPrediction, type PredictionResult } from './prediction-agent.js';
+import { type PoissonPrediction } from './statistical-model.js';
+import { getSeasonYear } from '../utils/season.js';
+
+type FullPredictionResult = PredictionResult & { poissonBaseline?: PoissonPrediction };
 
 // ---------------------------------------------------------------------------
 // League Configuration
@@ -59,7 +63,7 @@ export async function runDailyPipeline(): Promise<PipelineResult> {
   }
 
   // Step 2: Generate predictions for each match (sequentially to manage API rate limits)
-  const predictions: Array<{ match: MatchData; prediction: PredictionResult }> = [];
+  const predictions: Array<{ match: MatchData; prediction: FullPredictionResult }> = [];
 
   for (const match of matches) {
     try {
@@ -132,7 +136,7 @@ async function fetchUpcomingMatches(): Promise<MatchData[]> {
 
   const fromDate = now.toISOString().split('T')[0];
   const toDate = in48Hours.toISOString().split('T')[0];
-  const season = now.getFullYear();
+  const season = getSeasonYear();
 
   const allMatches: MatchData[] = [];
 
@@ -185,7 +189,7 @@ async function fetchUpcomingMatches(): Promise<MatchData[]> {
 // Step 2: Generate Prediction
 // ---------------------------------------------------------------------------
 
-async function generatePrediction(match: MatchData): Promise<PredictionResult> {
+async function generatePrediction(match: MatchData): Promise<FullPredictionResult> {
   return generateMatchPrediction({
     fixtureId: match.fixtureId,
     homeTeam: match.homeTeam,
@@ -201,7 +205,7 @@ async function generatePrediction(match: MatchData): Promise<PredictionResult> {
 // Step 3: Store Prediction
 // ---------------------------------------------------------------------------
 
-async function storePrediction(match: MatchData, prediction: PredictionResult): Promise<void> {
+async function storePrediction(match: MatchData, prediction: FullPredictionResult): Promise<void> {
   // Upsert match (ON CONFLICT apiFootballId)
   const existingMatch = await db
     .select()
@@ -250,32 +254,36 @@ async function storePrediction(match: MatchData, prediction: PredictionResult): 
     .where(eq(schema.predictions.matchId, matchId))
     .limit(1);
 
+  const predictionValues = {
+    predictionData: prediction.analysis as unknown as Record<string, unknown>,
+    confidence: String(prediction.confidence),
+    homeWinProb: String(prediction.homeWinProb),
+    drawProb: String(prediction.drawProb),
+    awayWinProb: String(prediction.awayWinProb),
+    overUnder25: prediction.overUnder25,
+    overUnder25Prob: String(prediction.overUnder25Prob),
+    btts: prediction.btts,
+    bttsProb: String(prediction.bttsProb),
+    predictedScore: prediction.predictedScore,
+    // Poisson baseline (if available on the prediction object)
+    ...(prediction.poissonBaseline ? {
+      poissonHomeProb: String(prediction.poissonBaseline.homeWinProb),
+      poissonDrawProb: String(prediction.poissonBaseline.drawProb),
+      poissonAwayProb: String(prediction.poissonBaseline.awayWinProb),
+      poissonOver25Prob: String(prediction.poissonBaseline.over25Prob),
+      poissonBttsProb: String(prediction.poissonBaseline.bttsProb),
+    } : {}),
+  };
+
   if (existingPrediction.length > 0) {
-    // Update existing prediction
     await db
       .update(schema.predictions)
-      .set({
-        predictionData: prediction.analysis as unknown as Record<string, unknown>,
-        confidence: String(prediction.confidence),
-        homeWinProb: String(prediction.homeWinProb),
-        drawProb: String(prediction.drawProb),
-        awayWinProb: String(prediction.awayWinProb),
-        overUnder25: prediction.overUnder25,
-        btts: prediction.btts,
-        predictedScore: prediction.predictedScore,
-      })
+      .set(predictionValues)
       .where(eq(schema.predictions.id, existingPrediction[0].id));
   } else {
     await db.insert(schema.predictions).values({
       matchId,
-      predictionData: prediction.analysis as unknown as Record<string, unknown>,
-      confidence: String(prediction.confidence),
-      homeWinProb: String(prediction.homeWinProb),
-      drawProb: String(prediction.drawProb),
-      awayWinProb: String(prediction.awayWinProb),
-      overUnder25: prediction.overUnder25,
-      btts: prediction.btts,
-      predictedScore: prediction.predictedScore,
+      ...predictionValues,
       tier: 'pro', // Default; will be reassigned in assignTiers()
     });
   }
@@ -328,15 +336,49 @@ async function assignTiers(): Promise<void> {
 // Step 4: Value Bet Analysis
 // ---------------------------------------------------------------------------
 
+// Edge threshold — higher than 5% to reduce false positives with uncalibrated probs
+const VALUE_BET_EDGE_THRESHOLD = 0.08; // 8%
+
+// The Odds API sport keys for our leagues
+const ODDS_API_SPORT_KEYS: Record<number, string> = {
+  39: 'soccer_epl',
+  140: 'soccer_spain_la_liga',
+  78: 'soccer_germany_bundesliga',
+  135: 'soccer_italy_serie_a',
+  61: 'soccer_france_ligue_one',
+};
+
+interface OddsOutcome {
+  name: string;
+  price: number;
+}
+
+interface OddsMarket {
+  key: string;
+  outcomes: OddsOutcome[];
+}
+
+interface OddsBookmaker {
+  key: string;
+  title: string;
+  markets: OddsMarket[];
+}
+
+interface OddsEvent {
+  id: string;
+  home_team: string;
+  away_team: string;
+  bookmakers: OddsBookmaker[];
+}
+
 async function runValueBetAnalysis(): Promise<number> {
   console.log('[Pipeline] Running value bet analysis...');
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 2); // Include tomorrow's matches too
+  tomorrow.setDate(tomorrow.getDate() + 2);
 
-  // Get predictions with their matches
   const predictionsWithMatches = await db
     .select({
       prediction: schema.predictions,
@@ -346,102 +388,171 @@ async function runValueBetAnalysis(): Promise<number> {
     .innerJoin(schema.matches, eq(schema.predictions.matchId, schema.matches.id))
     .where(and(gte(schema.matches.kickoff, today), lte(schema.matches.kickoff, tomorrow)));
 
+  // Fetch odds from The Odds API per league (much richer than API-Football odds)
+  const oddsCache = new Map<number, OddsEvent[]>();
+  const leagueIdSet = new Set<number>();
+  for (const p of predictionsWithMatches) leagueIdSet.add(Number(p.match.leagueId));
+  const leagueIds = Array.from(leagueIdSet);
+
+  for (const leagueId of leagueIds) {
+    const sportKey = ODDS_API_SPORT_KEYS[leagueId as number];
+    if (!sportKey) continue;
+
+    try {
+      const oddsResult = await callOddsApi(`/sports/${sportKey}/odds`, {
+        regions: 'eu,uk',
+        markets: 'h2h,totals,btts',
+        oddsFormat: 'decimal',
+      });
+
+      const events = (oddsResult.data as unknown) as OddsEvent[] | undefined;
+      if (Array.isArray(events)) {
+        oddsCache.set(leagueId, events);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`[Pipeline] The Odds API failed for league ${leagueId}: ${msg}. Falling back to API-Football odds.`);
+    }
+  }
+
   let valueBetCount = 0;
 
   for (const { prediction, match } of predictionsWithMatches) {
     try {
-      // Fetch odds for this fixture
-      const oddsResult = await callFootballApi('/odds', {
-        fixture: match.apiFootballId,
-      });
+      // Try to match against The Odds API events
+      const leagueEvents = oddsCache.get(Number(match.leagueId)) || [];
+      const oddsEvent = findMatchingEvent(leagueEvents, match.homeTeam, match.awayTeam);
 
-      const oddsData = (oddsResult.data as { response?: Array<{ bookmakers?: unknown[] }> })
-        .response;
-      if (!oddsData || oddsData.length === 0) continue;
+      // Build all bet candidates from our probabilities
+      const betCandidates: Array<{ type: string; ourProb: number }> = [
+        { type: '1X2_Home', ourProb: Number(prediction.homeWinProb) / 100 },
+        { type: '1X2_Draw', ourProb: Number(prediction.drawProb) / 100 },
+        { type: '1X2_Away', ourProb: Number(prediction.awayWinProb) / 100 },
+      ];
 
-      const bookmakers = oddsData[0]?.bookmakers as
-        | Array<{
-            name: string;
-            bets: Array<{
-              name: string;
-              values: Array<{ value: string; odd: string }>;
-            }>;
-          }>
-        | undefined;
-
-      if (!bookmakers) continue;
-
-      // Analyze each bookmaker's 1X2 odds
-      for (const bookmaker of bookmakers) {
-        const matchWinnerBet = bookmaker.bets?.find(
-          (b) => b.name === 'Match Winner' || b.name === '1X2'
+      // Add O/U and BTTS if we have probabilities
+      if (prediction.overUnder25Prob) {
+        betCandidates.push(
+          { type: 'Over_2.5', ourProb: Number(prediction.overUnder25Prob) / 100 },
+          { type: 'Under_2.5', ourProb: 1 - Number(prediction.overUnder25Prob) / 100 },
         );
-        if (!matchWinnerBet) continue;
+      }
+      if (prediction.bttsProb) {
+        betCandidates.push(
+          { type: 'BTTS_Yes', ourProb: Number(prediction.bttsProb) / 100 },
+          { type: 'BTTS_No', ourProb: 1 - Number(prediction.bttsProb) / 100 },
+        );
+      }
 
-        const homeOdds = matchWinnerBet.values.find((v) => v.value === 'Home')?.odd;
-        const drawOdds = matchWinnerBet.values.find((v) => v.value === 'Draw')?.odd;
-        const awayOdds = matchWinnerBet.values.find((v) => v.value === 'Away')?.odd;
+      // Find best odds across all bookmakers for each bet type
+      const bestOddsMap = new Map<string, { odds: number; bookmaker: string }>();
 
-        if (!homeOdds || !drawOdds || !awayOdds) continue;
-
-        const bets = [
-          {
-            type: '1X2_Home',
-            ourProb: Number(prediction.homeWinProb) / 100,
-            odds: parseFloat(homeOdds),
-          },
-          {
-            type: '1X2_Draw',
-            ourProb: Number(prediction.drawProb) / 100,
-            odds: parseFloat(drawOdds),
-          },
-          {
-            type: '1X2_Away',
-            ourProb: Number(prediction.awayWinProb) / 100,
-            odds: parseFloat(awayOdds),
-          },
-        ];
-
-        for (const bet of bets) {
-          const impliedProb = 1 / bet.odds;
-          const edge = bet.ourProb - impliedProb;
-
-          // Value bet if edge > 5%
-          if (edge > 0.05) {
-            // Kelly Criterion: f* = (bp - q) / b
-            // where b = odds - 1, p = our probability, q = 1 - p
-            const b = bet.odds - 1;
-            const kellyFraction = (b * bet.ourProb - (1 - bet.ourProb)) / b;
-            // Cap Kelly at 25% for safety (quarter-Kelly)
-            const kellyStake = Math.max(0, Math.min(kellyFraction * 0.25, 0.25));
-
-            // Delete existing value bet for this match/type/bookmaker
-            await db
-              .delete(schema.valueBets)
-              .where(
-                and(
-                  eq(schema.valueBets.matchId, match.id),
-                  eq(schema.valueBets.betType, bet.type),
-                  eq(schema.valueBets.bookmaker, bookmaker.name)
-                )
+      if (oddsEvent) {
+        for (const bm of oddsEvent.bookmakers) {
+          for (const market of bm.markets) {
+            for (const outcome of market.outcomes) {
+              const betType = mapOddsOutcomeToBetType(
+                market.key, outcome.name, oddsEvent.home_team, oddsEvent.away_team,
               );
+              if (!betType) continue;
 
-            await db.insert(schema.valueBets).values({
-              matchId: match.id,
-              betType: bet.type,
-              ourProbability: String(Math.round(bet.ourProb * 10000) / 100),
-              bestOdds: String(bet.odds),
-              bookmaker: bookmaker.name,
-              edge: String(Math.round(edge * 10000) / 100),
-              kellyStake: String(Math.round(kellyStake * 10000) / 100),
-              tier: 'pro',
-            });
-
-            valueBetCount++;
-            console.log(
-              `[Pipeline] Value bet: ${match.homeTeam} vs ${match.awayTeam} - ${bet.type} @ ${bet.odds} (edge: ${(edge * 100).toFixed(1)}%)`
-            );
+              const current = bestOddsMap.get(betType);
+              if (!current || outcome.price > current.odds) {
+                bestOddsMap.set(betType, { odds: outcome.price, bookmaker: bm.title });
+              }
+            }
           }
+        }
+      }
+
+      // Fallback: also check API-Football odds if The Odds API didn't cover this match
+      if (bestOddsMap.size === 0) {
+        try {
+          const fbOdds = await callFootballApi('/odds', { fixture: match.apiFootballId });
+          const fbData = (fbOdds.data as { response?: Array<{ bookmakers?: Array<{ name: string; bets: Array<{ name: string; values: Array<{ value: string; odd: string }> }> }> }> }).response;
+          const fbBookmakers = fbData?.[0]?.bookmakers || [];
+
+          for (const bm of fbBookmakers) {
+            for (const bet of bm.bets || []) {
+              for (const val of bet.values || []) {
+                const betType = mapApiFootballBet(bet.name, val.value);
+                if (!betType) continue;
+
+                const odds = parseFloat(val.odd);
+                const current = bestOddsMap.get(betType);
+                if (!current || odds > current.odds) {
+                  bestOddsMap.set(betType, { odds, bookmaker: bm.name });
+                }
+              }
+            }
+          }
+        } catch {
+          // API-Football odds also unavailable — skip
+        }
+      }
+
+      // Store best bookmaker odds on the prediction for later P/L calculation
+      const bestHome = bestOddsMap.get('1X2_Home');
+      const bestDraw = bestOddsMap.get('1X2_Draw');
+      const bestAway = bestOddsMap.get('1X2_Away');
+      const bestOver = bestOddsMap.get('Over_2.5');
+      const bestUnder = bestOddsMap.get('Under_2.5');
+      const bestBttsYes = bestOddsMap.get('BTTS_Yes');
+      const bestBttsNo = bestOddsMap.get('BTTS_No');
+
+      await db
+        .update(schema.predictions)
+        .set({
+          bestOddsHome: bestHome ? String(bestHome.odds) : null,
+          bestOddsDraw: bestDraw ? String(bestDraw.odds) : null,
+          bestOddsAway: bestAway ? String(bestAway.odds) : null,
+          bestOddsOver25: bestOver ? String(bestOver.odds) : null,
+          bestOddsUnder25: bestUnder ? String(bestUnder.odds) : null,
+          bestOddsBttsYes: bestBttsYes ? String(bestBttsYes.odds) : null,
+          bestOddsBttsNo: bestBttsNo ? String(bestBttsNo.odds) : null,
+        })
+        .where(eq(schema.predictions.id, prediction.id));
+
+      // Evaluate value bets
+      for (const bet of betCandidates) {
+        const best = bestOddsMap.get(bet.type);
+        if (!best) continue;
+
+        const impliedProb = 1 / best.odds;
+        const edge = bet.ourProb - impliedProb;
+
+        if (edge > VALUE_BET_EDGE_THRESHOLD) {
+          const b = best.odds - 1;
+          const kellyFraction = (b * bet.ourProb - (1 - bet.ourProb)) / b;
+          // Eighth-Kelly for safety with uncalibrated probs
+          const kellyStake = Math.max(0, Math.min(kellyFraction * 0.125, 0.10));
+
+          // Upsert value bet
+          await db
+            .delete(schema.valueBets)
+            .where(
+              and(
+                eq(schema.valueBets.matchId, match.id),
+                eq(schema.valueBets.betType, bet.type),
+                eq(schema.valueBets.bookmaker, best.bookmaker)
+              )
+            );
+
+          await db.insert(schema.valueBets).values({
+            matchId: match.id,
+            betType: bet.type,
+            ourProbability: String(Math.round(bet.ourProb * 10000) / 100),
+            bestOdds: String(best.odds),
+            bookmaker: best.bookmaker,
+            edge: String(Math.round(edge * 10000) / 100),
+            kellyStake: String(Math.round(kellyStake * 10000) / 100),
+            tier: 'pro',
+          });
+
+          valueBetCount++;
+          console.log(
+            `[Pipeline] Value bet: ${match.homeTeam} vs ${match.awayTeam} - ${bet.type} @ ${best.odds} (${best.bookmaker}, edge: ${(edge * 100).toFixed(1)}%)`
+          );
         }
       }
     } catch (error) {
@@ -452,6 +563,66 @@ async function runValueBetAnalysis(): Promise<number> {
 
   console.log(`[Pipeline] Found ${valueBetCount} value bets`);
   return valueBetCount;
+}
+
+/**
+ * Match The Odds API event to our match by fuzzy team name matching.
+ */
+function findMatchingEvent(events: OddsEvent[], homeTeam: string, awayTeam: string): OddsEvent | undefined {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const homeNorm = normalize(homeTeam);
+  const awayNorm = normalize(awayTeam);
+
+  return events.find(e => {
+    const eHome = normalize(e.home_team);
+    const eAway = normalize(e.away_team);
+    return (eHome.includes(homeNorm) || homeNorm.includes(eHome)) &&
+           (eAway.includes(awayNorm) || awayNorm.includes(eAway));
+  });
+}
+
+/**
+ * Map The Odds API outcome to our bet type string.
+ * For h2h markets, outcome names are team names (not Home/Draw/Away).
+ */
+function mapOddsOutcomeToBetType(
+  marketKey: string, outcomeName: string, homeTeam?: string, awayTeam?: string,
+): string | null {
+  if (marketKey === 'h2h') {
+    if (outcomeName === 'Draw') return '1X2_Draw';
+    if (homeTeam && outcomeName === homeTeam) return '1X2_Home';
+    if (awayTeam && outcomeName === awayTeam) return '1X2_Away';
+    return null;
+  }
+  if (marketKey === 'totals') {
+    if (outcomeName === 'Over') return 'Over_2.5';
+    if (outcomeName === 'Under') return 'Under_2.5';
+  }
+  if (marketKey === 'btts') {
+    if (outcomeName === 'Yes') return 'BTTS_Yes';
+    if (outcomeName === 'No') return 'BTTS_No';
+  }
+  return null;
+}
+
+/**
+ * Map API-Football bet types to our bet type string.
+ */
+function mapApiFootballBet(betName: string, value: string): string | null {
+  if (betName === 'Match Winner' || betName === '1X2') {
+    if (value === 'Home') return '1X2_Home';
+    if (value === 'Draw') return '1X2_Draw';
+    if (value === 'Away') return '1X2_Away';
+  }
+  if (betName === 'Goals Over/Under' || betName === 'Over/Under 2.5') {
+    if (value === 'Over 2.5') return 'Over_2.5';
+    if (value === 'Under 2.5') return 'Under_2.5';
+  }
+  if (betName === 'Both Teams Score') {
+    if (value === 'Yes') return 'BTTS_Yes';
+    if (value === 'No') return 'BTTS_No';
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

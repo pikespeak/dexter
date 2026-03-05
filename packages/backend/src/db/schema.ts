@@ -58,9 +58,26 @@ export const predictions = pgTable('predictions', {
   drawProb: decimal('draw_prob', { precision: 5, scale: 2 }),
   awayWinProb: decimal('away_win_prob', { precision: 5, scale: 2 }),
   overUnder25: varchar('over_under_25', { length: 10 }),
+  overUnder25Prob: decimal('over_under_25_prob', { precision: 5, scale: 2 }),
   btts: boolean('btts'),
+  bttsProb: decimal('btts_prob', { precision: 5, scale: 2 }),
   predictedScore: varchar('predicted_score', { length: 10 }),
+  // Poisson model baseline probabilities (stored for comparison)
+  poissonHomeProb: decimal('poisson_home_prob', { precision: 5, scale: 2 }),
+  poissonDrawProb: decimal('poisson_draw_prob', { precision: 5, scale: 2 }),
+  poissonAwayProb: decimal('poisson_away_prob', { precision: 5, scale: 2 }),
+  poissonOver25Prob: decimal('poisson_over_25_prob', { precision: 5, scale: 2 }),
+  poissonBttsProb: decimal('poisson_btts_prob', { precision: 5, scale: 2 }),
+  // Best bookmaker odds at time of prediction (for real P/L calculation)
+  bestOddsHome: decimal('best_odds_home', { precision: 6, scale: 2 }),
+  bestOddsDraw: decimal('best_odds_draw', { precision: 6, scale: 2 }),
+  bestOddsAway: decimal('best_odds_away', { precision: 6, scale: 2 }),
+  bestOddsOver25: decimal('best_odds_over_25', { precision: 6, scale: 2 }),
+  bestOddsUnder25: decimal('best_odds_under_25', { precision: 6, scale: 2 }),
+  bestOddsBttsYes: decimal('best_odds_btts_yes', { precision: 6, scale: 2 }),
+  bestOddsBttsNo: decimal('best_odds_btts_no', { precision: 6, scale: 2 }),
   tier: subscriptionPlanEnum('tier').notNull().default('pro'),
+  modelVersion: varchar('model_version', { length: 50 }).default('v1'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('predictions_match_id_idx').on(table.matchId),
@@ -75,6 +92,14 @@ export const performance = pgTable('performance', {
   wasCorrect: boolean('was_correct'),
   actualResult: varchar('actual_result', { length: 20 }),
   profitLoss: decimal('profit_loss', { precision: 10, scale: 2 }),
+  // Real P/L using actual bookmaker odds
+  realProfitLoss: decimal('real_profit_loss', { precision: 10, scale: 2 }),
+  // Brier Score: (predicted_prob - actual_outcome)^2 for 1X2
+  brierScore: decimal('brier_score', { precision: 8, scale: 6 }),
+  // O/U and BTTS evaluation
+  overUnderCorrect: boolean('over_under_correct'),
+  bttsCorrect: boolean('btts_correct'),
+  exactScoreCorrect: boolean('exact_score_correct'),
   evaluatedAt: timestamp('evaluated_at').defaultNow().notNull(),
 });
 
@@ -88,6 +113,10 @@ export const valueBets = pgTable('value_bets', {
   bookmaker: varchar('bookmaker', { length: 100 }).notNull(),
   edge: decimal('edge', { precision: 5, scale: 2 }).notNull(),
   kellyStake: decimal('kelly_stake', { precision: 5, scale: 2 }),
+  // Result tracking for value bets
+  result: varchar('result', { length: 20 }), // 'won' | 'lost' | 'void'
+  actualProfitLoss: decimal('actual_profit_loss', { precision: 10, scale: 2 }),
+  closingOdds: decimal('closing_odds', { precision: 6, scale: 2 }),
   tier: subscriptionPlanEnum('tier').notNull().default('pro'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

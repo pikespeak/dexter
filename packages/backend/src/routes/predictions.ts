@@ -46,7 +46,9 @@ predictionRoutes.get('/today', authMiddleware, requirePlan('pro'), async (c) => 
         drawProb: prediction.drawProb,
         awayWinProb: prediction.awayWinProb,
         overUnder25: prediction.overUnder25,
+        overUnder25Prob: prediction.overUnder25Prob,
         btts: prediction.btts,
+        bttsProb: prediction.bttsProb,
         predictedScore: prediction.predictedScore,
         confidence: prediction.confidence,
         details: prediction.predictionData,
@@ -103,6 +105,53 @@ predictionRoutes.get('/free', async (c) => {
   });
 });
 
+// GET /predictions/history - Past predictions with results
+// MUST be defined BEFORE /:matchId to avoid route conflict
+predictionRoutes.get('/history', authMiddleware, async (c) => {
+  const limit = parseInt(c.req.query('limit') || '20');
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  const history = await db
+    .select({
+      prediction: schema.predictions,
+      match: schema.matches,
+      performance: schema.performance,
+    })
+    .from(schema.predictions)
+    .innerJoin(schema.matches, eq(schema.predictions.matchId, schema.matches.id))
+    .leftJoin(schema.performance, eq(schema.performance.predictionId, schema.predictions.id))
+    .where(lte(schema.matches.kickoff, new Date()))
+    .orderBy(desc(schema.matches.kickoff))
+    .limit(limit)
+    .offset(offset);
+
+  return c.json({
+    history: history.map(({ prediction, match, performance: perf }) => ({
+      match: {
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        league: match.leagueName,
+        kickoff: match.kickoff,
+        result: match.homeScore !== null ? `${match.homeScore}-${match.awayScore}` : null,
+      },
+      prediction: {
+        predictedScore: prediction.predictedScore,
+        confidence: prediction.confidence,
+        homeWinProb: prediction.homeWinProb,
+        drawProb: prediction.drawProb,
+        awayWinProb: prediction.awayWinProb,
+      },
+      result: perf ? {
+        wasCorrect: perf.wasCorrect,
+        profitLoss: perf.profitLoss,
+        brierScore: perf.brierScore,
+        overUnderCorrect: perf.overUnderCorrect,
+        bttsCorrect: perf.bttsCorrect,
+      } : null,
+    })),
+  });
+});
+
 // GET /predictions/:matchId - Get detailed prediction for a match (requires Pro)
 predictionRoutes.get('/:matchId', authMiddleware, requirePlan('pro'), async (c) => {
   const matchId = c.req.param('matchId');
@@ -145,7 +194,9 @@ predictionRoutes.get('/:matchId', authMiddleware, requirePlan('pro'), async (c) 
         awayWin: result.prediction.awayWinProb,
       },
       overUnder25: result.prediction.overUnder25,
+      overUnder25Prob: result.prediction.overUnder25Prob,
       btts: result.prediction.btts,
+      bttsProb: result.prediction.bttsProb,
       predictedScore: result.prediction.predictedScore,
       confidence: result.prediction.confidence,
       valueBets: matchValueBets.map((vb) => ({
@@ -157,46 +208,5 @@ predictionRoutes.get('/:matchId', authMiddleware, requirePlan('pro'), async (c) 
         kellyStake: vb.kellyStake,
       })),
     },
-  });
-});
-
-// GET /predictions/history - Past predictions with results
-predictionRoutes.get('/history', authMiddleware, async (c) => {
-  const user = c.get('user') as JWTPayload;
-  const limit = parseInt(c.req.query('limit') || '20');
-  const offset = parseInt(c.req.query('offset') || '0');
-
-  const history = await db
-    .select({
-      prediction: schema.predictions,
-      match: schema.matches,
-      performance: schema.performance,
-    })
-    .from(schema.predictions)
-    .innerJoin(schema.matches, eq(schema.predictions.matchId, schema.matches.id))
-    .leftJoin(schema.performance, eq(schema.performance.predictionId, schema.predictions.id))
-    .where(lte(schema.matches.kickoff, new Date()))
-    .orderBy(desc(schema.matches.kickoff))
-    .limit(limit)
-    .offset(offset);
-
-  return c.json({
-    history: history.map(({ prediction, match, performance: perf }) => ({
-      match: {
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-        league: match.leagueName,
-        kickoff: match.kickoff,
-        result: match.homeScore !== null ? `${match.homeScore}-${match.awayScore}` : null,
-      },
-      prediction: {
-        predictedScore: prediction.predictedScore,
-        confidence: prediction.confidence,
-      },
-      result: perf ? {
-        wasCorrect: perf.wasCorrect,
-        profitLoss: perf.profitLoss,
-      } : null,
-    })),
   });
 });
